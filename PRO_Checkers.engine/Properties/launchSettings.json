@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "PRO_Checkers.engine": {
+      "commandName": "Project"
+    },
+    "WSL": {
+      "commandName": "WSL2",
+      "distributionName": ""
+    }
+  }
+}
