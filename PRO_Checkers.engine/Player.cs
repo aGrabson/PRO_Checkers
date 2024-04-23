@@ -3,6 +3,7 @@
     public static class Player
     {
         private static bool _forceCapture = true;
+        private static TreeNode _root;
 
         public static bool ForceCapture
         {
@@ -21,35 +22,117 @@
             public Move Move { get; set; }
         }
 
+        //public static Move NextBestMove(Game game, Tile color, int depth)
+        //{
+        //    if (depth == 0)
+        //    {
+        //        return null;
+        //    }
+        //    List<MoveResult> bestMoves = new List<MoveResult>();
+
+
+        //    foreach (var position in game.GetPositions(Helper.GetTileColors(color)))
+        //    {
+        //        var move = NextBestMove(game, color, position, depth);
+        //        if (move != null)
+        //        {
+        //            bestMoves.Add(move);
+        //        }
+        //    }
+
+        //    //Eat is obligatory
+        //    if (_forceCapture)
+        //    {
+        //        var eatMoves = bestMoves.Where(x => x.Move is Eat);
+        //        if (eatMoves.Any())
+        //        {
+        //            return eatMoves.OrderByDescending(x => x.Weight).First().Move;
+        //        }
+        //    }
+
+        //    return bestMoves.OrderByDescending(x => x.Weight).FirstOrDefault()?.Move ?? null;
+        //}
+
         public static Move NextBestMove(Game game, Tile color, int depth)
         {
+            var rootNode = BuildTree(game, color, depth);
+            var bestMove = GetBestMove(rootNode, color);
+            return bestMove;
+        }
+
+        private static Move GetBestMove(TreeNode rootNode, Tile color)
+        {
+            int bestScore = int.MinValue;
+            Move bestMove = null;
+
+            foreach (var childNode in rootNode.Children)
+            {
+                int score = GetLeafScore(childNode, color);
+
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestMove = childNode.Move;
+                }
+            }
+
+            return bestMove;
+        }
+
+        private static int GetLeafScore(TreeNode node, Tile color)
+        {
+            if (node.Children.Count == 0)
+            {
+                // Leaf node, return the score
+                if(color == Tile.White)
+                {
+                    return node.WeightWhite;
+                }
+                else if (color == Tile.Black)
+                {
+                    return node.WeightBlack;
+                }
+            }
+
+            // Recursively traverse children to find leaf nodes
+            int bestScore = int.MinValue;
+            foreach (var childNode in node.Children)
+            {
+                int score = GetLeafScore(childNode, color);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                }
+            }
+            return bestScore;
+        }
+
+        private static TreeNode BuildTree(Game game, Tile color, int depth)
+        {
+            var rootNode = new TreeNode(game);
+            GenerateMoves(rootNode, color, depth);
+            return rootNode;
+        }
+
+        private static void GenerateMoves(TreeNode node, Tile color, int depth)
+        {
             if (depth == 0)
-            {
-                return null;
-            }
-            List<MoveResult> bestMoves = new List<MoveResult>();
+                return;
 
+            var moves = Moves(node.GameState, color);
 
-            foreach (var position in game.GetPositions(Helper.GetTileColors(color)))
+            foreach (var move in moves)
             {
-                var move = NextBestMove(game, color, position, depth);
-                if (move != null)
-                {
-                    bestMoves.Add(move);
-                }
-            }
+                var newGame = node.GameState.Move(move);
+                var childNode = new TreeNode(newGame, move);
+                
+                childNode.WeightWhite = Score(newGame, Tile.White);
+                childNode.WeightBlack = Score(newGame, Tile.Black);
+                
+                node.Children.Add(childNode);
 
-            //Eat is obligatory
-            if (_forceCapture)
-            {
-                var eatMoves = bestMoves.Where(x => x.Move is Eat);
-                if (eatMoves.Any())
-                {
-                    return eatMoves.OrderByDescending(x => x.Weight).First().Move;
-                }
+                GenerateMoves(childNode, Helper.ChangeColor(color), depth - 1);
             }
-            
-            return bestMoves.OrderByDescending(x => x.Weight).FirstOrDefault()?.Move ?? null;
         }
 
         public static IEnumerable<Move> Moves(Game game, Tile color)
