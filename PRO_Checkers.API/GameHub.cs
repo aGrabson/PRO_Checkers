@@ -1,12 +1,23 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Newtonsoft.Json;
 using PRO_Checkers.engine;
+using System.Collections.Generic;
 using System.Drawing;
 
 namespace PRO_Checkers.API
 {
     public class GameHub : Hub
     {
+
+        struct ThreadParameters
+        {
+            public bool backwardEat;
+            public bool forcedEat;
+            public string gamejs;
+            public string colorjs;
+            public int depth;
+        }
+
         public override async Task OnConnectedAsync()
         {
             Console.WriteLine(Context.ConnectionId);
@@ -15,29 +26,88 @@ namespace PRO_Checkers.API
             
         }
 
+
         public async Task SendToCalculate(string gamejs, string colorjs, bool backwardEat, bool forcedEat, int depth)
         {
             Game game = JsonConvert.DeserializeObject<Game>(gamejs);
             Tile color = JsonConvert.DeserializeObject<Tile>(colorjs);
-            // stworzenie gry, obliczamy ruchy dla danego koloru jakim aktualnie jest, sprawdzasz ile masz i podzial ile klientow, ile ruchow i jak gbsa zrobić
-            foreach (var connection in ConnectionManager.ConnectionsIDs)
-                {
-                    Console.WriteLine(connection);
-                    await Clients.Client(connection).SendAsync("Calculate", gamejs, colorjs, backwardEat, forcedEat, depth);
-                }
+            Helper.ForceCapture = forcedEat;
+            Player.ForceCapture = forcedEat;
+            Helper.BackwardCapture = backwardEat;
+
+            if (ConnectionManager._root == null)
+            {
+                ConnectionManager._root = new TreeNode(game);
+            }
+
+            var moves = Player.Moves(game, color);
+            foreach (var move in moves)
+            {
+                ConnectionManager.MovesToBeCalculatedQueue.Enqueue(move);
+            }
+
+            ThreadParameters parametres = new ThreadParameters
+            {
+                backwardEat = backwardEat,
+                forcedEat = forcedEat,
+                gamejs = gamejs,
+                colorjs = colorjs,
+                depth = depth
+            };
+            Thread sendingThread = new Thread(new ParameterizedThreadStart(SendToClientMoves));
+            sendingThread.Start(parametres);
+            sendingThread.Join();
+
+            var bestMove = Player.GetBestMove(ConnectionManager._root, color);
+            string nextMove = JsonConvert.SerializeObject(bestMove);
+            await Clients.Client(Context.ConnectionId).SendAsync("nextMove", nextMove);
+        }
+
+        public async void SendToClientMoves(object o)
+        {
+            ThreadParameters parametres = (ThreadParameters)o;
+            while (ConnectionManager.MovesToBeCalculatedQueue.Count > 0)
+            {
+                
+                    foreach (var clientStatus in ConnectionManager.ClientsStatus)
+                    {
+                        if (clientStatus.Value)
+                        {
+                            Console.WriteLine(clientStatus.Key);
+                            Console.WriteLine(clientStatus.Value);
+                            ConnectionManager.timeCalc4Client.Add(new Tuple<Move,Tuple<string,DateTime>>(ConnectionManager.MovesToBeCalculatedQueue.First(), Tuple.Create(clientStatus.Key, DateTime.Now)));
+                            await Clients.Client(clientStatus.Key).SendAsync("CalculateNextMove", ConnectionManager.MovesToBeCalculatedQueue.Dequeue(), parametres.gamejs, parametres.colorjs, parametres.backwardEat, parametres.forcedEat, parametres.depth);
+                            ConnectionManager.ClientsStatus.AddOrUpdate(clientStatus.Key, false, (key, oldValue) => false);
+                        }
+                    }
+                
+            }
+            
         }
         public async Task SetClientsToCalculate()
         {
-            ConnectionManager.ConnectionsIDs.Add(Context.ConnectionId);
+            ConnectionManager.ClientsStatus.TryAdd(Context.ConnectionId, true);
+
         }
-        public async Task ReceiveClientsCalculations()
+        public async Task ReceiveClientsCalculations(string nodejs, DateTime startTime, DateTime endTime)
         {
+            DateTime receiveCalcTime = DateTime.Now;
+            TreeNode calcMoves = JsonConvert.DeserializeObject<TreeNode>(nodejs);
+            ConnectionManager._root.Children.Add(calcMoves);
+            ConnectionManager.ClientsStatus.AddOrUpdate(Context.ConnectionId, true, (key, oldValue) => true);
+            //ConnectionManager.CalculatedMovesQueue.Enqueue(calcMoves);
             //tu zwrotka do UI zeby ruch obliczony wyslac
         }
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
             Console.WriteLine($"Client {Context.ConnectionId} disconnected...");
-            ConnectionManager.ConnectionsIDs.Remove(Context.ConnectionId);
+            
+            var element = ConnectionManager.ClientsStatus.FirstOrDefault(x => x.Key == Context.ConnectionId);
+            if(element.Key != null)
+            {
+                ConnectionManager.ClientsStatus.TryRemove(element);
+
+            }
             await base.OnDisconnectedAsync(exception);
         }
     }

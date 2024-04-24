@@ -1,4 +1,6 @@
-﻿using PRO_Checkers.engine;
+﻿using Microsoft.AspNetCore.SignalR.Client;
+using Newtonsoft.Json;
+using PRO_Checkers.engine;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -32,11 +34,41 @@ namespace PRO_Checkers.UI
         private int startRow, startCol;
         private bool GameFinished = false;
         private int depth = 3;
-        public Window1(string typeOfGame, bool backwardEat, bool forcedEat)
+        public HubConnection connection;
+        public Window1(string typeOfGame, bool backwardEat, bool forcedEat, string ipaddress = "localhost")
     {
         InitializeComponent();
+            connection = new HubConnectionBuilder()
+                .WithUrl($"http://{ipaddress}:5202/game-hub")
+                .Build();
+            connection.On<string>("nextMove", (nextMove) =>
+            {
+                Move move = JsonConvert.DeserializeObject<Move>(nextMove);
+                game.Push(new Tuple<Game, Tile>(board, color));
+                board = board.Move(move);
+                ChangeTurn();
+                GenerateCheckerboard();
+                CheckIfEndGame();
+                
+                
+            });
+            StartHubConnectionAsync();
+            //try
+            //{
+            //    await connection.StartAsync();
+            //    Game board = Game.NewGame();
+            //    Tile color = Tile.White;
+            //    bool backwardEat = true;
+            //    bool forcedEat = true;
 
-        this.typeOfGame = typeOfGame;
+            //    //Game game, bool backwardEat, bool forcedEat, int depth, Tile color
+            //    await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, 4);
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine($"Błąd połączenia: {ex.Message}");
+            //}
+            this.typeOfGame = typeOfGame;
         this.backwardEat = backwardEat;
         this.forcedEat = forcedEat;
         game = new Stack<Tuple<Game, Tile>>();
@@ -50,6 +82,19 @@ namespace PRO_Checkers.UI
             ScoreBlack.Content = "Punkty czarnego: " + Player.Score(board, Tile.Black);
             GenerateCheckerboard();
             
+        }
+        private async Task StartHubConnectionAsync()
+        {
+            try
+            {
+                await connection.StartAsync();
+                // Tutaj możesz dodać dodatkowe operacje po rozpoczęciu połączenia, jeśli są potrzebne
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Błąd połączenia: {ex.Message}");
+                // Tutaj możesz obsłużyć błąd połączenia, jeśli wystąpi
+            }
         }
         protected override async void OnContentRendered(EventArgs e)
         {
@@ -229,7 +274,8 @@ namespace PRO_Checkers.UI
                     CheckIfEndGame();
                     if (!GameFinished)
                     {
-                        await ComputerMove();
+                        await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
+                        //await ComputerMove();
                     }
                 }
                 GenerateCheckerboard();

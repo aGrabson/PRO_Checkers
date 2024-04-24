@@ -60,7 +60,7 @@
             return bestMove;
         }
 
-        private static Move GetBestMove(TreeNode rootNode, Tile color)
+        public static Move GetBestMove(TreeNode rootNode, Tile color)
         {
             int bestScore = int.MinValue;
             Move bestMove = null;
@@ -114,7 +114,7 @@
             return rootNode;
         }
 
-        private static void GenerateMoves(TreeNode node, Tile color, int depth)
+        public static void GenerateMoves(TreeNode node, Tile color, int depth)
         {
             if (depth == 0)
                 return;

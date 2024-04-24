@@ -4,6 +4,8 @@ using System.Drawing;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using PRO_Checkers.engine;
+using System.Xml.Linq;
+using System.Diagnostics;
 
 namespace PRO_Checkers.Client
 {
@@ -20,12 +22,38 @@ namespace PRO_Checkers.Client
                 Console.WriteLine($"{message}");
             });
 
-            connection.On<string, string, bool, bool, int>("Calculate", (gamejs, colorjs, backwardEat, forcedEat, depth) =>
+            connection.On<Move, string, string, bool, bool, int>("CalculateNextMove", async (move, gamejs, colorjs, backwardEat, forcedEat, depth) =>
             {
+                DateTime startTime = DateTime.Now;
+
                 Game game = JsonConvert.DeserializeObject<Game>(gamejs);
                 Tile color = JsonConvert.DeserializeObject<Tile>(colorjs);
-                Console.WriteLine(game);
+
+                game.Move(move);
+                TreeNode node = new TreeNode(game, move);
+                node.WeightWhite = Player.Score(game, Tile.White);
+                node.WeightBlack = Player.Score(game, Tile.Black);
+                Helper.ForceCapture = forcedEat;
+                Player.ForceCapture = forcedEat;
+                Helper.BackwardCapture = backwardEat;
+                Player.GenerateMoves(node, Helper.ChangeColor(color), depth-1);
+                string nodejs = JsonConvert.SerializeObject(node);
+                DateTime endTime = DateTime.Now;
+
+
+                try
+                {
+
+                    await connection.InvokeAsync("ReceiveClientsCalculations", nodejs, startTime, endTime);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Błąd połączenia: {ex.Message}");
+                }
+                Console.WriteLine(move);
+
             });
+
 
             try
             {
@@ -33,9 +61,10 @@ namespace PRO_Checkers.Client
                 await connection.InvokeAsync("SetClientsToCalculate");
                 bool test = true;
 
-                while(test) {
+                while (test)
+                {
                     string read = Console.ReadLine();
-                    if(read == "q")
+                    if (read == "q")
                     {
                         test = false;
                         break;

@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
 using Newtonsoft.Json;
 using PRO_Checkers.engine;
+using System.Drawing;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -22,43 +24,76 @@ namespace PRO_Checkers.UI
         private String typeOfGame = "";
         private bool backwardEat = true;
         private bool forcedEat = true;
-        public HubConnection connection = new HubConnectionBuilder()
-                .WithUrl("http://localhost:5202/game-hub")
-                .Build();
-
+        
 
         public MainWindow()
         {
             InitializeComponent();
             
-            connection.On<string>("OnConnection", (message) =>
-            {
-                Console.WriteLine($"{message}");
-            });
+            
 
             
         }
 
+        private bool ValidateIP(string text)
+        {
+            string pattern = @"^((\d{1,3})\.){3}(\d{1,3})$";
+
+            if (!Regex.IsMatch(text, pattern))
+            {
+                return false;
+            }
+            return true;
+        }
+        private void TextBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (textBox.Text == "Wprowadź IP...")
+            {
+                textBox.Text = "";
+            }
+        }
+
+        private void TextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(textBox.Text))
+            {
+                textBox.Text = "Wprowadź IP...";
+            }
+        }
         private void computerVsComputerButtonClick(object sender, RoutedEventArgs e)
         {
             this.backwardEat = BackwardCheckbox.IsChecked.Value;
             this.forcedEat = ForcedCheckbox.IsChecked.Value;
             this.typeOfGame = "computerVsComputer";
-
-            Window1 secondWindow = new Window1(typeOfGame, backwardEat, forcedEat);
-            secondWindow.Show();
-            this.Close();
+            string text = textBox.Text;
+            if (ValidateIP(text))
+            {
+                Window1 secondWindow = new Window1(typeOfGame, backwardEat, forcedEat, text);
+                secondWindow.Show();
+                this.Close();
+            }
+            else
+            {
+                MessageBox.Show("Adres IP jest niepoprawny.");
+            }
         }
-
 
         private void computerVsPlayerButtonClick(object sender, RoutedEventArgs e)
         {
             this.backwardEat = BackwardCheckbox.IsChecked.Value;
             this.forcedEat = ForcedCheckbox.IsChecked.Value;
             this.typeOfGame = "computerVsPlayer";
-            Window1 secondWindow = new Window1(typeOfGame, backwardEat, forcedEat);
-            secondWindow.Show();
-            this.Close();
+            string text = textBox.Text;
+            if (ValidateIP(text))
+            {
+                Window1 secondWindow = new Window1(typeOfGame, backwardEat, forcedEat, text);
+                secondWindow.Show();
+                this.Close();
+            }
+            else
+            {
+                MessageBox.Show("Adres IP jest niepoprawny.");
+            }
         }
 
         private void backwardEatCheckbox(object sender, RoutedEventArgs e)
@@ -70,28 +105,5 @@ namespace PRO_Checkers.UI
 
         }
 
-        private async void OnConnection(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                await connection.StartAsync();
-                Game board = Game.NewGame();
-                Tile color = Tile.White;
-                bool test = true;
-                bool backwardEat = true;
-                bool forcedEat = true;
-
-            //Game game, bool backwardEat, bool forcedEat, int depth, Tile color
-            await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, 4);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Błąd połączenia: {ex.Message}");
-            }
-            finally
-            {
-                await connection.StopAsync();
-            }
-        }
     }
 }
