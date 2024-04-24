@@ -343,40 +343,42 @@ namespace PRO_Checkers.UI
             }
         private async Task ComputerMove()
         {
+            await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
+            //ChangeTurn();
+            //GenerateCheckerboard();
+            //CheckIfEndGame();
             await Task.Delay(100);
-            var suggestedMove = Player.NextBestMove(board, color, depth);
-            game.Push(new Tuple<Game, Tile>(board, color));
-            board = board.Move(suggestedMove);
-            if (suggestedMove is Eat)
-            {
-                var newMoves = Player.Moves(board, color).ToArray();
-                var eatMoves = newMoves.OfType<Eat>();
-                if (eatMoves.Any())
-                {
-                    bool validMove = false;
+            //var suggestedMove = Player.NextBestMove(board, color, depth);
+            //game.Push(new Tuple<Game, Tile>(board, color));
+            //board = board.Move(suggestedMove);
+            //if (suggestedMove is Eat)
+            //{
+            //    var newMoves = Player.Moves(board, color).ToArray();
+            //    var eatMoves = newMoves.OfType<Eat>();
+            //    if (eatMoves.Any())
+            //    {
+            //        bool validMove = false;
                     
-                    while (!validMove)
-                    {
-                        foreach (var eat in eatMoves)
-                        {
-                            if (suggestedMove.To.Column == eat.From.Column && suggestedMove.To.Row == eat.From.Row)
-                            {
-                                game.Push(new Tuple<Game, Tile>(board, color));
-                               // await Task.Delay(1000);
-                                board = board.Move(eat);
-                                validMove = true;
-                                var newMovesAfterEat = Player.Moves(board, color).ToArray();
-                                var eatMovesAfterEat = newMovesAfterEat.OfType<Eat>();
-                                validMove = true;
-                            }
-                        }
-                        validMove = true;
-                    }
-                }
-            }
-            ChangeTurn();
-            GenerateCheckerboard();
-            CheckIfEndGame();
+            //        while (!validMove)
+            //        {
+            //            foreach (var eat in eatMoves)
+            //            {
+            //                if (suggestedMove.To.Column == eat.From.Column && suggestedMove.To.Row == eat.From.Row)
+            //                {
+            //                    game.Push(new Tuple<Game, Tile>(board, color));
+            //                   // await Task.Delay(1000);
+            //                    board = board.Move(eat);
+            //                    validMove = true;
+            //                    var newMovesAfterEat = Player.Moves(board, color).ToArray();
+            //                    var eatMovesAfterEat = newMovesAfterEat.OfType<Eat>();
+            //                    validMove = true;
+            //                }
+            //            }
+            //            validMove = true;
+            //        }
+            //    }
+            //}
+            
             
         }
         private void ResetPiecePosition()
