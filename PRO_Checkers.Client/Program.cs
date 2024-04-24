@@ -15,6 +15,7 @@ namespace PRO_Checkers.Client
         {
             HubConnection connection = new HubConnectionBuilder()
                 .WithUrl("http://localhost:5202/game-hub")
+                .WithServerTimeout(TimeSpan.FromMinutes(5))
                 .Build();
 
             connection.On<string>("OnConnection", (message) =>
@@ -22,15 +23,28 @@ namespace PRO_Checkers.Client
                 Console.WriteLine($"{message}");
             });
 
-            connection.On<Move, string, string, bool, bool, int>("CalculateNextMove", async (move, gamejs, colorjs, backwardEat, forcedEat, depth) =>
+            connection.On<string, string, string, bool, bool, int, bool>("CalculateNextMove", async (movejs, gamejs, colorjs, backwardEat, forcedEat, depth, eat) =>
             {
                 DateTime startTime = DateTime.Now;
-
+                
                 Game game = JsonConvert.DeserializeObject<Game>(gamejs);
                 Tile color = JsonConvert.DeserializeObject<Tile>(colorjs);
-
-                game.Move(move);
-                TreeNode node = new TreeNode(game, move);
+                TreeNode node = null;
+                if (eat)
+                {
+                    Eat move = JsonConvert.DeserializeObject<Eat>(movejs);
+                    game.Move(move);
+                    node = new TreeNode(game, move);
+                    node.EatMove = move;
+                    Console.WriteLine(move);
+                }
+                else
+                {
+                    Move move = JsonConvert.DeserializeObject<Move>(movejs);
+                    game.Move(move);
+                    node = new TreeNode(game, move);
+                    Console.WriteLine(move);
+                }
                 node.WeightWhite = Player.Score(game, Tile.White);
                 node.WeightBlack = Player.Score(game, Tile.Black);
                 Helper.ForceCapture = forcedEat;
@@ -50,7 +64,7 @@ namespace PRO_Checkers.Client
                 {
                     Console.WriteLine($"Błąd połączenia: {ex.Message}");
                 }
-                Console.WriteLine(move);
+                
 
             });
 

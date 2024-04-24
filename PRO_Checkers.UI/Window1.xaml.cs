@@ -33,22 +33,75 @@ namespace PRO_Checkers.UI
         private Tile color;
         private int startRow, startCol;
         private bool GameFinished = false;
-        private int depth = 3;
+        private int depth = 4;
+        public bool flag = false;
         public HubConnection connection;
         public Window1(string typeOfGame, bool backwardEat, bool forcedEat, string ipaddress = "localhost")
     {
         InitializeComponent();
             connection = new HubConnectionBuilder()
                 .WithUrl($"http://{ipaddress}:5202/game-hub")
+                .WithServerTimeout(TimeSpan.FromMinutes(5))
                 .Build();
-            connection.On<string>("nextMove", (nextMove) =>
+            connection.On<string, bool>("nextMove", async (nextMove, eat) =>
             {
-                Move move = JsonConvert.DeserializeObject<Move>(nextMove);
-                game.Push(new Tuple<Game, Tile>(board, color));
-                board = board.Move(move);
-                ChangeTurn();
-                GenerateCheckerboard();
-                CheckIfEndGame();
+                if (flag)
+                {
+                    if (eat)
+                    {
+                        game.Push(new Tuple<Game, Tile>(board, color));
+                        if (eat)
+                        {
+                            Eat move = JsonConvert.DeserializeObject<Eat>(nextMove);
+                            board = board.Move(move);
+                            await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
+                            flag = true;
+                        }
+                        else
+                        {
+                            Move move = JsonConvert.DeserializeObject<Move>(nextMove);
+                            board = board.Move(move);
+                            ChangeTurn();
+                            flag = false;
+                        }
+
+
+
+                        GenerateCheckerboard();
+                        CheckIfEndGame();
+                    }
+                    else
+                    {
+                        ChangeTurn();
+                        flag = false;
+                    }
+                }
+                else
+                {
+                    game.Push(new Tuple<Game, Tile>(board, color));
+                    if (eat)
+                    {
+                        Eat move = JsonConvert.DeserializeObject<Eat>(nextMove);
+                        board = board.Move(move);
+                        await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
+                        flag = true;
+                    }
+                    else
+                    {
+                        Move move = JsonConvert.DeserializeObject<Move>(nextMove);
+                        board = board.Move(move);
+                        ChangeTurn();
+                        flag = false;
+                    }
+
+
+
+                    GenerateCheckerboard();
+                    CheckIfEndGame();
+                }
+                    
+                
+                
                 
                 
             });
@@ -114,7 +167,9 @@ namespace PRO_Checkers.UI
             }
         }
 
-        private void GenerateCheckerboard()
+        public void GenerateCheckerboard()
+            {
+            Application.Current.Dispatcher.Invoke(() =>
             {
                 bool isBlackSquare = false;
                 for (int i = 0; i < 8; i++)
@@ -136,18 +191,20 @@ namespace PRO_Checkers.UI
                     }
                     isBlackSquare = !isBlackSquare;
                 }
-            for (int row = 0; row < 8; row++)
-            {
-                for (int col = 0; col < 8; col++)
+                for (int row = 0; row < 8; row++)
                 {
-                    Tile tile = board.GetTile(Position.FromCoors(7 - row, col));
-                    if (tile != Tile.Empty)
+                    for (int col = 0; col < 8; col++)
                     {
-                        Brush colorBrush = (tile == Tile.Black || tile == Tile.QueenBlack) ? Brushes.Gray : Brushes.White;
-                        AddChecker(row, col, colorBrush, tile == Tile.QueenBlack || tile == Tile.QueenWhite);
+                        Tile tile = board.GetTile(Position.FromCoors(7 - row, col));
+                        if (tile != Tile.Empty)
+                        {
+                            Brush colorBrush = (tile == Tile.Black || tile == Tile.QueenBlack) ? Brushes.Gray : Brushes.White;
+                            AddChecker(row, col, colorBrush, tile == Tile.QueenBlack || tile == Tile.QueenWhite);
+                        }
                     }
                 }
-            }
+            });
+            
 
         }
 
@@ -212,7 +269,7 @@ namespace PRO_Checkers.UI
                 }
             }
         }
-        private void CheckIfEndGame()
+        public void CheckIfEndGame()
         {
             if (Helper.IsGameFinished(board, color))
             {
@@ -333,12 +390,24 @@ namespace PRO_Checkers.UI
                 Canvas.SetLeft(movingPiece, startCol * Size + offsetX);
             }
         }
-        private void ChangeTurn()
+        public void ChangeTurn()
         {
             color = Helper.ChangeColor(color);
-            TurnLabel.Content = "Tura gracza: " + (color == Tile.White ? "białego" : "czarnego");
-            ScoreWhite.Content = "Punkty białego: " + Player.Score(board, Tile.White);
-            ScoreBlack.Content = "Punkty czarnego: " + Player.Score(board, Tile.Black);
+            TurnLabel.Dispatcher.Invoke(() =>
+            {
+                TurnLabel.Content = "Tura gracza: " + (color == Tile.White ? "białego" : "czarnego");
+            });
+            ScoreWhite.Dispatcher.Invoke(() =>
+            {
+                ScoreWhite.Content = "Punkty białego: " + Player.Score(board, Tile.White);
+            });
+            ScoreBlack.Dispatcher.Invoke(() =>
+            {
+                ScoreBlack.Content = "Punkty czarnego: " + Player.Score(board, Tile.Black);
+            });
+            //TurnLabel.Content = "Tura gracza: " + (color == Tile.White ? "białego" : "czarnego");
+            //ScoreWhite.Content = "Punkty białego: " + Player.Score(board, Tile.White);
+            //ScoreBlack.Content = "Punkty czarnego: " + Player.Score(board, Tile.Black);
         }
     }
 }

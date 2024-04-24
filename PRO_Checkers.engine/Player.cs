@@ -72,7 +72,15 @@
                 if (score > bestScore)
                 {
                     bestScore = score;
-                    bestMove = childNode.Move;
+                    if(childNode.EatMove != null)
+                    {
+                        bestMove = childNode.EatMove;
+                    }
+                    else
+                    {
+                        bestMove = childNode.Move;
+                    }
+                    
                 }
             }
 
@@ -125,6 +133,10 @@
             {
                 var newGame = node.GameState.Move(move);
                 var childNode = new TreeNode(newGame, move);
+                if(move is Eat)
+                {
+                    childNode.EatMove = (Eat)move;
+                }
                 
                 childNode.WeightWhite = Score(newGame, Tile.White);
                 childNode.WeightBlack = Score(newGame, Tile.Black);

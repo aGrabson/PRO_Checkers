@@ -10,6 +10,7 @@ namespace PRO_Checkers.engine
     {
         public Game GameState { get; set; }
         public Move Move { get; set; }
+        public Eat EatMove { get; set; } = null;
         public int WeightWhite { get; set; }
         public int WeightBlack { get; set; }
         public List<TreeNode> Children { get; set; }

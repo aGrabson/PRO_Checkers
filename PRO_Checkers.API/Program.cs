@@ -18,7 +18,6 @@ namespace PRO_Checkers.API
                 options.ClientTimeoutInterval = TimeSpan.FromMinutes(5);
             });
 
-
             var app = builder.Build();
 
             if (app.Environment.IsDevelopment())
