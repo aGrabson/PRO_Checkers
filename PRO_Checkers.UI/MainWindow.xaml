@@ -40,7 +40,7 @@
             Margin="0,10" 
             Padding="10,5" 
             Click="computerVsPlayerButtonClick"/>
-        <TextBox Name="textBox" Text="Wprowadź IP..." GotFocus="TextBox_GotFocus" FontSize="20" LostFocus="TextBox_LostFocus" Margin="-1,2,1,77" Grid.Row="3" Width="250" Height="30"/>
+        <TextBox Name="textBox" Text="127.0.0.1" GotFocus="TextBox_GotFocus" FontSize="20" LostFocus="TextBox_LostFocus" Margin="-1,2,1,77" Grid.Row="3" Width="250" Height="30"/>
 
         <StackPanel Grid.Row="3" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,44,0,0">
             <CheckBox 

@@ -35,6 +35,7 @@ namespace PRO_Checkers.UI
         private bool GameFinished = false;
         private int depth = 4;
         public bool flag = false;
+        public Eat eatMove = null;
         public HubConnection connection;
         public Window1(string typeOfGame, bool backwardEat, bool forcedEat, string ipaddress = "localhost")
     {
@@ -49,23 +50,19 @@ namespace PRO_Checkers.UI
                 {
                     if (eat)
                     {
-                        game.Push(new Tuple<Game, Tile>(board, color));
-                        if (eat)
+                        Eat move = JsonConvert.DeserializeObject<Eat>(nextMove);
+                        if (eatMove.To.Column == move.From.Column && eatMove.To.Row == move.From.Row)
                         {
-                            Eat move = JsonConvert.DeserializeObject<Eat>(nextMove);
+                            game.Push(new Tuple<Game, Tile>(board, color));
                             board = board.Move(move);
                             await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
                             flag = true;
                         }
                         else
                         {
-                            Move move = JsonConvert.DeserializeObject<Move>(nextMove);
-                            board = board.Move(move);
                             ChangeTurn();
                             flag = false;
                         }
-
-
 
                         GenerateCheckerboard();
                         CheckIfEndGame();
@@ -73,6 +70,7 @@ namespace PRO_Checkers.UI
                     else
                     {
                         ChangeTurn();
+                        CheckIfEndGame();
                         flag = false;
                     }
                 }
@@ -83,6 +81,7 @@ namespace PRO_Checkers.UI
                     {
                         Eat move = JsonConvert.DeserializeObject<Eat>(nextMove);
                         board = board.Move(move);
+                        eatMove = move;
                         await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
                         flag = true;
                     }
@@ -93,17 +92,10 @@ namespace PRO_Checkers.UI
                         ChangeTurn();
                         flag = false;
                     }
-
-
-
                     GenerateCheckerboard();
                     CheckIfEndGame();
                 }
-                    
-                
-                
-                
-                
+
             });
             StartHubConnectionAsync();
             //try

@@ -23,7 +23,7 @@ namespace PRO_Checkers.Client
                 Console.WriteLine($"{message}");
             });
 
-            connection.On<string, string, string, bool, bool, int, bool>("CalculateNextMove", async (movejs, gamejs, colorjs, backwardEat, forcedEat, depth, eat) =>
+            connection.On<string, string, string, bool, bool, int, bool, DateTime>("CalculateNextMove", async (movejs, gamejs, colorjs, backwardEat, forcedEat, depth, eat, sendTime) =>
             {
                 DateTime startTime = DateTime.Now;
                 
@@ -33,7 +33,7 @@ namespace PRO_Checkers.Client
                 if (eat)
                 {
                     Eat move = JsonConvert.DeserializeObject<Eat>(movejs);
-                    game.Move(move);
+                    game = game.Move(move);
                     node = new TreeNode(game, move);
                     node.EatMove = move;
                     Console.WriteLine(move);
@@ -41,7 +41,7 @@ namespace PRO_Checkers.Client
                 else
                 {
                     Move move = JsonConvert.DeserializeObject<Move>(movejs);
-                    game.Move(move);
+                    game = game.Move(move);
                     node = new TreeNode(game, move);
                     Console.WriteLine(move);
                 }
@@ -58,7 +58,7 @@ namespace PRO_Checkers.Client
                 try
                 {
 
-                    await connection.InvokeAsync("ReceiveClientsCalculations", nodejs, startTime, endTime);
+                    await connection.InvokeAsync("ReceiveClientsCalculations", nodejs, sendTime, startTime, endTime);
                 }
                 catch (Exception ex)
                 {

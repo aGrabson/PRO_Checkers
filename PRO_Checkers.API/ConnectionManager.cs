@@ -10,7 +10,8 @@ namespace PRO_Checkers.API
         public static Queue<Move> MovesToBeCalculatedQueueCopy = new Queue<Move>();
         public static Queue<Move> CalculatedMovesQueue = new Queue<Move>();
         public static TreeNode _root = null;
-        public static List<Tuple<Move, Tuple<string, DateTime>>> timeCalc4Client = new List<Tuple<Move, Tuple<string, DateTime>>>();
+        public static List<Tuple<Move, string, DateTime>> timeCalc4Client = new List<Tuple<Move, string, DateTime>>();
+        public static bool AreHeadersWritten = false;
 
     }
 }
