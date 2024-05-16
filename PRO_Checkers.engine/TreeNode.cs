@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace PRO_Checkers.engine
 {
@@ -26,12 +27,15 @@ namespace PRO_Checkers.engine
         }
         public TreeNode FindNodeById(Guid id)
         {
+            
             if (this.Id == id)
             {
                 return this;
             }
 
-            foreach (var child in Children)
+            List<TreeNode> nodesCopy = new List<TreeNode>(Children);
+
+            foreach (var child in nodesCopy)
             {
                 var result = child.FindNodeById(id);
                 if (result != null)

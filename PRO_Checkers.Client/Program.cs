@@ -43,14 +43,15 @@ namespace PRO_Checkers.Client
                     Player.GetNestedEatMoves(node, move);
                         
                     
-                    Console.WriteLine(move);
+                    Console.WriteLine(move.ToString() + "id node dla ktorego liczymy: " + nodeID);
                 }
                 else
                 {
                     Move move = JsonConvert.DeserializeObject<Move>(movejs);
                     game = game.Move(move);
                     node = new TreeNode(game, move);
-                    Console.WriteLine(move);
+
+                    Console.WriteLine(move.ToString() + "id node dla ktorego liczymy: " + nodeID);
                 }
                 node.WeightWhite = Player.Score(game, Tile.White);
                 node.WeightBlack = Player.Score(game, Tile.Black);
