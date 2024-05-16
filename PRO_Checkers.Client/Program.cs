@@ -43,7 +43,7 @@ namespace PRO_Checkers.Client
                     Player.GetNestedEatMoves(node, move);
                         
                     
-                    Console.WriteLine(move.ToString() + "id node dla ktorego liczymy: " + nodeID);
+                   // Console.WriteLine(move.ToString() + "id node dla ktorego liczymy: " + nodeID);
                 }
                 else
                 {
@@ -51,7 +51,7 @@ namespace PRO_Checkers.Client
                     game = game.Move(move);
                     node = new TreeNode(game, move);
 
-                    Console.WriteLine(move.ToString() + "id node dla ktorego liczymy: " + nodeID);
+                    //Console.WriteLine(move.ToString() + "id node dla ktorego liczymy: " + nodeID);
                 }
                 node.WeightWhite = Player.Score(game, Tile.White);
                 node.WeightBlack = Player.Score(game, Tile.Black);

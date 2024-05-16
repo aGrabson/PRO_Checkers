@@ -6,13 +6,13 @@ namespace PRO_Checkers.API
     public static class ConnectionManager
     {
         public static ConcurrentDictionary<string, bool> ClientsStatus = new ConcurrentDictionary<string, bool>();
-        public static Queue<Move> MovesToBeCalculatedQueue = new Queue<Move>();
-        public static Queue<Move> MovesToBeCalculatedQueueCopy = new Queue<Move>();
-        public static Queue<Move> CalculatedMovesQueue = new Queue<Move>();
+        public static ConcurrentQueue<Tuple<Move, Game, Guid>> MovesToBeCalculatedQueue = new ConcurrentQueue<Tuple<Move, Game, Guid>>();
+        public static ConcurrentQueue<Tuple<Move, Game, Guid>> MovesToBeCalculatedQueueCopy = new ConcurrentQueue<Tuple<Move, Game, Guid>>();
         public static TreeNode _root = null;
         public static TreeNode _historyRoot = null;
         public static List<Tuple<Move, string, DateTime>> timeCalc4Client = new List<Tuple<Move, string, DateTime>>();
         public static bool AreHeadersWritten = false;
+        public static readonly object fileLock = new object();
 
     }
 }
