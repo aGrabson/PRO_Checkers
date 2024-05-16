@@ -36,32 +36,9 @@ namespace PRO_Checkers.Client
                     game = game.Move(move);
                     node = new TreeNode(game, move);
                     node.EatMove = move;
-                        var newMoves = Helper.CalculateMoves(game, Position.FromCoors(move.To.Row, move.To.Column));
-                        var eatMoves = newMoves.OfType<Eat>();
-                        if (eatMoves.Any())
-                        {
-                            bool validMove = false;
-                            while (!validMove)
-                            {
-                                foreach (var eats in eatMoves)
-                                {
-                                    if (move.To.Column == eats.From.Column && move.To.Row == eats.From.Row)
-                                    {
-                                    node.NestedEats.Add(eats);
-                                    game = game.Move(eats);
-                                    node.GameState = game;
-                                        validMove = true;
-                                        var newMovesAfterEat = Helper.CalculateMoves(game, Position.FromCoors(eats.To.Row, eats.To.Column)).ToArray();
-                                        var eatMovesAfterEat = newMovesAfterEat.OfType<Eat>();
-                                        if (!eatMovesAfterEat.Any(em => em.From.Column == eats.To.Column && em.From.Row == eats.To.Row))
-                                        {
-                                            validMove = true;
-                                        }
-                                    }
-                                }
-                                validMove = true;
-                            }
-                        }
+
+                    Player.GetNestedEatMoves(node, move);
+                        
                     
                     Console.WriteLine(move);
                 }

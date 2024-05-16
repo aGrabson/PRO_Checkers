@@ -123,6 +123,28 @@
             return rootNode;
         }
 
+        public static void GetNestedEatMoves(TreeNode node, Eat move)
+        {
+            Game newGame = node.GameState;
+            var newMoves = Helper.CalculateMoves(newGame, Position.FromCoors(move.To.Row, move.To.Column));
+            var eatMoves = newMoves.OfType<Eat>();
+            if (eatMoves.Any())
+            {
+                foreach (var eat in eatMoves)
+                {
+                    if (move.To.Column == eat.From.Column && move.To.Row == eat.From.Row)
+                    {
+                        node.NestedEats.Add(eat);
+                        newGame = newGame.Move(eat);
+                        node.GameState = newGame;
+                        GetNestedEatMoves(node, eat);
+                        break;
+                    }
+                }
+            }
+        }
+
+
         public static void GenerateMoves(TreeNode node, Tile color, int depth)
         {
             if (depth == 0)
@@ -137,32 +159,10 @@
                 if(move is Eat)
                 {
                     childNode.EatMove = (Eat)move;
-                    var newMoves = Helper.CalculateMoves(newGame, Position.FromCoors(move.To.Row, move.To.Column));
-                    var eatMoves = newMoves.OfType<Eat>();
-                    if (eatMoves.Any())
-                    {
-                        bool validMove = false;
-                        while (!validMove)
-                        {
-                            foreach (var eat in eatMoves)
-                            {
-                                if (move.To.Column == eat.From.Column && move.To.Row == eat.From.Row)
-                                {
-                                    childNode.NestedEats.Add(eat);
-                                    newGame = newGame.Move(eat);
-                                    childNode.GameState = newGame;
-                                    validMove = true;
-                                    var newMovesAfterEat = Helper.CalculateMoves(newGame, Position.FromCoors(eat.To.Row, eat.To.Column)).ToArray();
-                                    var eatMovesAfterEat = newMovesAfterEat.OfType<Eat>();
-                                    if (!eatMovesAfterEat.Any(em => em.From.Column == eat.To.Column && em.From.Row == eat.To.Row))
-                                    {
-                                        validMove = true;
-                                    }
-                                }
-                            }
-                            validMove = true;
-                        }
-                    }
+
+                    GetNestedEatMoves(childNode, (Eat)move);
+
+                    
                 }
                 
                 childNode.WeightWhite = Score(newGame, Tile.White);
