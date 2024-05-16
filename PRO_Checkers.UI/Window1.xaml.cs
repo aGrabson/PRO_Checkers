@@ -44,57 +44,88 @@ namespace PRO_Checkers.UI
                 .WithUrl($"http://{ipaddress}:5202/game-hub")
                 .WithServerTimeout(TimeSpan.FromMinutes(5))
                 .Build();
-            connection.On<string, bool>("nextMove", async (nextMove, eat) =>
+            connection.On<string, bool, string>("nextMove", async (nextMove, eat, nestedMovesjs) =>
             {
-                if (flag)
+                game.Push(new Tuple<Game, Tile>(board, color));
+                if (eat)
                 {
-                    if (eat)
-                    {
-                        Eat move = JsonConvert.DeserializeObject<Eat>(nextMove);
-                        if (eatMove.To.Column == move.From.Column && eatMove.To.Row == move.From.Row)
-                        {
-                            game.Push(new Tuple<Game, Tile>(board, color));
-                            board = board.Move(move);
-                            await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
-                            flag = true;
-                        }
-                        else
-                        {
-                            ChangeTurn();
-                            flag = false;
-                        }
+                    Eat move = JsonConvert.DeserializeObject<Eat>(nextMove);
+                    List<Eat>? nestedEats = JsonConvert.DeserializeObject<List<Eat>>(nestedMovesjs);
+                    board = board.Move(move);
+                    GenerateCheckerboard();
 
-                        GenerateCheckerboard();
-                        CheckIfEndGame();
-                    }
-                    else
+                    foreach (var eatMoveTest in nestedEats)
                     {
-                        ChangeTurn();
-                        CheckIfEndGame();
-                        flag = false;
+                        game.Push(new Tuple<Game, Tile>(board, color));
+                        board = board.Move(eatMoveTest);
+                        GenerateCheckerboard();
                     }
+
+                    //eatMove = move;
+                    //await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
+                    //flag = true;
                 }
                 else
                 {
-                    game.Push(new Tuple<Game, Tile>(board, color));
-                    if (eat)
-                    {
-                        Eat move = JsonConvert.DeserializeObject<Eat>(nextMove);
-                        board = board.Move(move);
-                        eatMove = move;
-                        await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
-                        flag = true;
-                    }
-                    else
-                    {
-                        Move move = JsonConvert.DeserializeObject<Move>(nextMove);
-                        board = board.Move(move);
-                        ChangeTurn();
-                        flag = false;
-                    }
+                    Move move = JsonConvert.DeserializeObject<Move>(nextMove);
+                    board = board.Move(move);
                     GenerateCheckerboard();
-                    CheckIfEndGame();
+                    
+                    //flag = false;
                 }
+                ChangeTurn();
+                CheckIfEndGame();
+
+
+                //if (flag)
+                //{
+                //    if (eat)
+                //    {
+                //        Eat move = JsonConvert.DeserializeObject<Eat>(nextMove);
+                //        if (eatMove.To.Column == move.From.Column && eatMove.To.Row == move.From.Row)
+                //        {
+                //            game.Push(new Tuple<Game, Tile>(board, color));
+                //            board = board.Move(move);
+                //            await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
+                //            flag = true;
+                //        }
+                //        else
+                //        {
+                //            ChangeTurn();
+                //            flag = false;
+                //        }
+
+                //        GenerateCheckerboard();
+                //        CheckIfEndGame();
+                //    }
+                //    else
+                //    {
+                //        ChangeTurn();
+                //        CheckIfEndGame();
+                //        flag = false;
+                //    }
+                //}
+                //else
+                //{
+                //    game.Push(new Tuple<Game, Tile>(board, color));
+                //    if (eat)
+                //    {
+                //        Eat move = JsonConvert.DeserializeObject<Eat>(nextMove);
+                //        board = board.Move(move);
+                //        eatMove = move;
+                //        await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
+                //        flag = true;
+                //    }
+                //    else
+                //    {
+                //        Move move = JsonConvert.DeserializeObject<Move>(nextMove);
+                //        board = board.Move(move);
+                //        ChangeTurn();
+                //        flag = false;
+                //    }
+                //    GenerateCheckerboard();
+                //    CheckIfEndGame();
+                //}
 
             });
             StartHubConnectionAsync();
@@ -160,10 +191,12 @@ namespace PRO_Checkers.UI
         }
 
         public void GenerateCheckerboard()
-            {
+        {
             Application.Current.Dispatcher.Invoke(() =>
             {
                 bool isBlackSquare = false;
+                int blackSquareCounter = 1; // Licznik dla czarnych pól
+
                 for (int i = 0; i < 8; i++)
                 {
                     for (int j = 0; j < 8; j++)
@@ -178,11 +211,30 @@ namespace PRO_Checkers.UI
                         Canvas.SetTop(square, i * Size);
                         Canvas.SetLeft(square, j * Size);
                         CheckerCanvas.Children.Add(square);
+                        // Dodawanie numeracji tylko do czarnych pól
+                        if (isBlackSquare)
+                        {
+                            var textBlock = new TextBlock
+                            {
+                                Text = blackSquareCounter.ToString(),
+                                Foreground = Brushes.White, // Kolor tekstu
+                                FontWeight = FontWeights.Bold,
+                                FontSize = 12
+                            };
 
+                            Canvas.SetTop(textBlock, i * Size + (Size / 2) - 5); // Centrowanie tekstu w pionie
+                            Canvas.SetLeft(textBlock, j * Size + (Size / 2) - 5); // Centrowanie tekstu w poziomie
+                            CheckerCanvas.Children.Add(textBlock);
+
+                            blackSquareCounter++; // Zwiększanie licznika czarnych pól
+                        }
                         isBlackSquare = !isBlackSquare;
+
+                        
                     }
                     isBlackSquare = !isBlackSquare;
                 }
+
                 for (int row = 0; row < 8; row++)
                 {
                     for (int col = 0; col < 8; col++)
@@ -196,11 +248,10 @@ namespace PRO_Checkers.UI
                     }
                 }
             });
-            
-
         }
 
-            private void AddChecker(int i, int j, Brush color, bool isQueen)
+
+        private void AddChecker(int i, int j, Brush color, bool isQueen)
             {
                 var checker = new Ellipse
                 {

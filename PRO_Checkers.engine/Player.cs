@@ -157,7 +157,6 @@
                                     if (!eatMovesAfterEat.Any(em => em.From.Column == eat.To.Column && em.From.Row == eat.To.Row))
                                     {
                                         validMove = true;
-                                        break;
                                     }
                                 }
                             }

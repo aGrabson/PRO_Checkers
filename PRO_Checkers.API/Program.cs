@@ -6,6 +6,10 @@ namespace PRO_Checkers.API
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            builder.WebHost.ConfigureKestrel(options =>
+            {
+                options.ListenAnyIP(5202); 
+            });
 
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -25,6 +29,13 @@ namespace PRO_Checkers.API
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
+
+            app.UseCors(builder =>
+            {
+                builder.AllowAnyOrigin()
+                       .AllowAnyMethod()
+                       .AllowAnyHeader();
+            });
 
             //app.UseHttpsRedirection();
 

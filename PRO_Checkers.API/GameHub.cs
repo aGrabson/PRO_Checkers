@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using PRO_Checkers.engine;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Reflection.Metadata;
 using System.Text;
 
 namespace PRO_Checkers.API
@@ -16,6 +17,13 @@ namespace PRO_Checkers.API
             public string gamejs;
             public string colorjs;
             public int depth;
+        }
+        struct ThreadCalcTimeParameters
+        {
+            public string clientid;
+            public TimeSpan sendDuration;
+            public TimeSpan calcDuration;
+            public TimeSpan receiveDuration;
         }
 
         public override async Task OnConnectedAsync()
@@ -61,12 +69,28 @@ namespace PRO_Checkers.API
             while(ConnectionManager.MovesToBeCalculatedQueueCopy.Count > 0) { }
             var bestMove = Player.GetBestMove(ConnectionManager._root, color);
             bool eat = false;
-            if(bestMove is Eat)
+            string nextMove = String.Empty;
+            //if(childNode.EatMove != null)
+            //{
+            //    bestMove = childNode.EatMove;
+            //}
+            //else
+            //{
+            //    bestMove = childNode.Move;
+            //}
+            if (bestMove.EatMove != null)
             {
                 eat = true;
+                nextMove = JsonConvert.SerializeObject(bestMove.EatMove);
             }
-            string nextMove = JsonConvert.SerializeObject(bestMove);
-            await Clients.Client(Context.ConnectionId).SendAsync("nextMove", nextMove, eat);
+            else
+            {
+                nextMove = JsonConvert.SerializeObject(bestMove.Move);
+            }
+
+
+            string nestedMovesjs = JsonConvert.SerializeObject(bestMove.NestedEats);
+            await Clients.Client(Context.ConnectionId).SendAsync("nextMove", nextMove, eat, nestedMovesjs);
         }
 
         public async void SendToClientMoves(object o)
@@ -105,23 +129,12 @@ namespace PRO_Checkers.API
             ConnectionManager.ClientsStatus.TryAdd(Context.ConnectionId, true);
 
         }
-        public async Task ReceiveClientsCalculations(string nodejs, DateTime sendTime, DateTime startTime, DateTime endTime)
+        public async void SaveCalculationsTimes(object o)
         {
-            var clientid = Context.ConnectionId;
-            DateTime receiveCalcTime = DateTime.Now;
-            TreeNode calcMoves = JsonConvert.DeserializeObject<TreeNode>(nodejs);
-            ConnectionManager._root.Children.Add(calcMoves);
-            ConnectionManager.MovesToBeCalculatedQueueCopy.Dequeue();
-            ConnectionManager.ClientsStatus.AddOrUpdate(Context.ConnectionId, true, (key, oldValue) => true);
-            
-            //ConnectionManager.CalculatedMovesQueue.Enqueue(calcMoves);
-            //tu zwrotka do UI zeby ruch obliczony wyslac
-            //var sendTime = ConnectionManager.timeCalc4Client.Where(x => x.Item1 == calcMoves.Move && x.Item2 == clientid).First().Item3;
+            ThreadCalcTimeParameters parametres = (ThreadCalcTimeParameters)o;
             string csvFilePath = "clients_calculations.csv";
             StringBuilder csvContent = new StringBuilder();
-            TimeSpan sendDuration = startTime - sendTime;
-            TimeSpan calcDuration =  endTime - startTime;
-            TimeSpan receiveDuration = receiveCalcTime - endTime;
+
             if (!ConnectionManager.AreHeadersWritten)
             {
                 string csvHeaders = "id_Klienta;Czas wyslania;Czas obliczen;Czas odebrania";
@@ -129,9 +142,39 @@ namespace PRO_Checkers.API
                 ConnectionManager.AreHeadersWritten = true;
             }
             //idKlienta, kiedy wyslalismy, kiedy rozpoczal obliczenia, kiedy skonczyl obliczenia, kiedy odebralismy
-            string csvLine = $"{clientid};{sendDuration.TotalMilliseconds}ms;{calcDuration.TotalMilliseconds}ms;{receiveDuration.TotalMilliseconds}ms";
+            string csvLine = $"{parametres.clientid};{parametres.sendDuration.TotalMilliseconds}ms;{parametres.calcDuration.TotalMilliseconds}ms;{parametres.receiveDuration.TotalMilliseconds}ms";
             csvContent.AppendLine(csvLine);
             await File.AppendAllTextAsync(csvFilePath, csvContent.ToString());
+        }
+
+            public async Task ReceiveClientsCalculations(string nodejs, DateTime sendTime, DateTime startTime, DateTime endTime)
+        {
+            var clientid = Context.ConnectionId;
+            DateTime receiveCalcTime = DateTime.Now;
+            TreeNode calcMoves = JsonConvert.DeserializeObject<TreeNode>(nodejs);
+            ConnectionManager._root.Children.Add(calcMoves);
+            ConnectionManager.MovesToBeCalculatedQueueCopy.Dequeue();
+            ConnectionManager.ClientsStatus.AddOrUpdate(Context.ConnectionId, true, (key, oldValue) => true);
+
+            //ConnectionManager.CalculatedMovesQueue.Enqueue(calcMoves);
+            //tu zwrotka do UI zeby ruch obliczony wyslac
+            //var sendTime = ConnectionManager.timeCalc4Client.Where(x => x.Item1 == calcMoves.Move && x.Item2 == clientid).First().Item3;
+
+            TimeSpan sendDuration = startTime - sendTime;
+            TimeSpan calcDuration = endTime - startTime;
+            TimeSpan receiveDuration = receiveCalcTime - endTime;
+            ThreadCalcTimeParameters parametres = new ThreadCalcTimeParameters
+            {
+                clientid = clientid,
+                sendDuration = sendDuration,
+                calcDuration = calcDuration,
+                receiveDuration = receiveDuration
+            };
+
+            Thread calcThread = new Thread(new ParameterizedThreadStart(SaveCalculationsTimes));
+
+            calcThread.Start(parametres);
+            calcThread.Join();
 
         }
         public override async Task OnDisconnectedAsync(Exception? exception)
