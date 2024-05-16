@@ -24,5 +24,44 @@ namespace PRO_Checkers.engine
             Children = new List<TreeNode>();
             NestedEats = new List<Eat>();
         }
+        public TreeNode FindNodeById(Guid id)
+        {
+            if (this.Id == id)
+            {
+                return this;
+            }
+
+            foreach (var child in Children)
+            {
+                var result = child.FindNodeById(id);
+                if (result != null)
+                {
+                    return result;
+                }
+            }
+
+            return null;
+        }
+        public List<TreeNode> GetLeafNodes()
+        {
+            var leafNodes = new List<TreeNode>();
+            CollectLeafNodes(this, leafNodes);
+            return leafNodes;
+        }
+
+        private void CollectLeafNodes(TreeNode node, List<TreeNode> leafNodes)
+        {
+            if (node.Children == null || node.Children.Count == 0)
+            {
+                leafNodes.Add(node);
+            }
+            else
+            {
+                foreach (var child in node.Children)
+                {
+                    CollectLeafNodes(child, leafNodes);
+                }
+            }
+        }
     }
 }

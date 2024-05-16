@@ -23,11 +23,14 @@ namespace PRO_Checkers.Client
                 Console.WriteLine($"{message}");
             });
 
-            connection.On<string, string, string, bool, bool, int, bool, DateTime>("CalculateNextMove", async (movejs, gamejs, colorjs, backwardEat, forcedEat, depth, eat, sendTime) =>
+            connection.On<string, string, string, int, bool, DateTime, Guid>("CalculateNextMove", async (movejs, gamejs, colorjs, depth, eat, sendTime, nodeID) =>
             {
                 DateTime startTime = DateTime.Now;
                 
                 Game game = JsonConvert.DeserializeObject<Game>(gamejs);
+                Helper.ForceCapture = game.SkipMoves;
+                Player.ForceCapture = game.SkipMoves;
+                Helper.BackwardCapture = game.BeatBack;
                 Tile color = JsonConvert.DeserializeObject<Tile>(colorjs);
                 TreeNode node = null;
                 if (eat)
@@ -51,9 +54,7 @@ namespace PRO_Checkers.Client
                 }
                 node.WeightWhite = Player.Score(game, Tile.White);
                 node.WeightBlack = Player.Score(game, Tile.Black);
-                Helper.ForceCapture = forcedEat;
-                Player.ForceCapture = forcedEat;
-                Helper.BackwardCapture = backwardEat;
+
                 Player.GenerateMoves(node, Helper.ChangeColor(color), depth-1);
                 string nodejs = JsonConvert.SerializeObject(node);
                 DateTime endTime = DateTime.Now;
@@ -62,7 +63,7 @@ namespace PRO_Checkers.Client
                 try
                 {
 
-                    await connection.InvokeAsync("ReceiveClientsCalculations", nodejs, sendTime, startTime, endTime);
+                    await connection.InvokeAsync("ReceiveClientsCalculations", nodejs, sendTime, startTime, endTime, nodeID);
                 }
                 catch (Exception ex)
                 {
