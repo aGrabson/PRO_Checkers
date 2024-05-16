@@ -15,6 +15,26 @@
             get { return _backwardCapture; }
             set { _backwardCapture = value; }
         }
+        public static bool CompareTileMatrices(Game game1, Game game2)
+        {
+            if (game1.Tiles.GetLength(0) != game2.Tiles.GetLength(0) || game1.Tiles.GetLength(1) != game2.Tiles.GetLength(1))
+            {
+                return false;
+            }
+
+            for (int i = 0; i < game1.Tiles.GetLength(0); i++)
+            {
+                for (int j = 0; j < game1.Tiles.GetLength(1); j++)
+                {
+                    if (game1.Tiles[i, j] != game2.Tiles[i, j])
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
         public static IEnumerable<Move> CalculateMoves(Game board, int position)
         {
             return CalculateMoves(board, Position.FromNumber(position));

@@ -8,18 +8,21 @@ namespace PRO_Checkers.engine
 {
     public class TreeNode
     {
+        public Guid Id { get; set; } = Guid.NewGuid();
         public Game GameState { get; set; }
         public Move Move { get; set; }
         public Eat EatMove { get; set; } = null;
         public int WeightWhite { get; set; }
         public int WeightBlack { get; set; }
         public List<TreeNode> Children { get; set; }
+        public List<Eat> NestedEats { get; set; }
 
         public TreeNode(Game gameState, Move move = null)
         {
             GameState = gameState;
             Move = move;
             Children = new List<TreeNode>();
+            NestedEats = new List<Eat>();
         }
     }
 }

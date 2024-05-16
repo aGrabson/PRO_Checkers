@@ -53,17 +53,17 @@
         //    return bestMoves.OrderByDescending(x => x.Weight).FirstOrDefault()?.Move ?? null;
         //}
 
-        public static Move NextBestMove(Game game, Tile color, int depth)
+        public static TreeNode NextBestMove(Game game, Tile color, int depth)
         {
             var rootNode = BuildTree(game, color, depth);
             var bestMove = GetBestMove(rootNode, color);
             return bestMove;
         }
 
-        public static Move GetBestMove(TreeNode rootNode, Tile color)
+        public static TreeNode GetBestMove(TreeNode rootNode, Tile color)
         {
             int bestScore = int.MinValue;
-            Move bestMove = null;
+            TreeNode bestMove = null;
 
             foreach (var childNode in rootNode.Children)
             {
@@ -72,14 +72,15 @@
                 if (score > bestScore)
                 {
                     bestScore = score;
-                    if(childNode.EatMove != null)
-                    {
-                        bestMove = childNode.EatMove;
-                    }
-                    else
-                    {
-                        bestMove = childNode.Move;
-                    }
+                    bestMove = childNode;
+                    //if(childNode.EatMove != null)
+                    //{
+                    //    bestMove = childNode.EatMove;
+                    //}
+                    //else
+                    //{
+                    //    bestMove = childNode.Move;
+                    //}
                     
                 }
             }
@@ -136,6 +137,33 @@
                 if(move is Eat)
                 {
                     childNode.EatMove = (Eat)move;
+                    var newMoves = Helper.CalculateMoves(newGame, Position.FromCoors(move.To.Row, move.To.Column));
+                    var eatMoves = newMoves.OfType<Eat>();
+                    if (eatMoves.Any())
+                    {
+                        bool validMove = false;
+                        while (!validMove)
+                        {
+                            foreach (var eat in eatMoves)
+                            {
+                                if (move.To.Column == eat.From.Column && move.To.Row == eat.From.Row)
+                                {
+                                    childNode.NestedEats.Add(eat);
+                                    newGame = newGame.Move(eat);
+                                    childNode.GameState = newGame;
+                                    validMove = true;
+                                    var newMovesAfterEat = Helper.CalculateMoves(newGame, Position.FromCoors(eat.To.Row, eat.To.Column)).ToArray();
+                                    var eatMovesAfterEat = newMovesAfterEat.OfType<Eat>();
+                                    if (!eatMovesAfterEat.Any(em => em.From.Column == eat.To.Column && em.From.Row == eat.To.Row))
+                                    {
+                                        validMove = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            validMove = true;
+                        }
+                    }
                 }
                 
                 childNode.WeightWhite = Score(newGame, Tile.White);
@@ -165,64 +193,64 @@
         }
 
 
-        public static MoveResult NextBestMove(Game game, Tile color, Position position, int depth)
-        {
-            if (depth == 0)
-                return null;
+        //public static MoveResult NextBestMove(Game game, Tile color, Position position, int depth)
+        //{
+        //    if (depth == 0)
+        //        return null;
 
-            Move bestMove = null;
-            var bestResult = int.MinValue;
+        //    Move bestMove = null;
+        //    var bestResult = int.MinValue;
 
-            var moves = Helper.CalculateMoves(game, position);
+        //    var moves = Helper.CalculateMoves(game, position);
 
-            foreach (var move in moves)
-            {
-                var newGame = game.Move(move);
-                Move nextBestMoveOther;
-                if (move is Eat)
-                {
-                    var newMoves = Helper.CalculateMoves(newGame, Position.FromCoors(move.To.Row, move.To.Column));
-                    var eatMoves = newMoves.OfType<Eat>();
-                    if (eatMoves.Any())
-                    {
-                        bool validMove = false;
-                        while (!validMove)
-                        {
-                            foreach (var eat in eatMoves)
-                            {
-                                if (move.To.Column == eat.From.Column && move.To.Row == eat.From.Row)
-                                {
-                                    newGame = newGame.Move(eat);
-                                    validMove = true;
-                                    var newMovesAfterEat = Helper.CalculateMoves(newGame, Position.FromCoors(eat.To.Row, eat.To.Column)).ToArray();
-                                    var eatMovesAfterEat = newMovesAfterEat.OfType<Eat>();
-                                    if (!eatMovesAfterEat.Any(em => em.From.Column == eat.To.Column && em.From.Row == eat.To.Row))
-                                    {
-                                        validMove = true;
-                                    }
-                                }
-                            }
-                            validMove = true;
-                        }
-                    }
-                }
+        //    foreach (var move in moves)
+        //    {
+        //        var newGame = game.Move(move);
+        //        Move nextBestMoveOther;
+        //        if (move is Eat)
+        //        {
+        //            var newMoves = Helper.CalculateMoves(newGame, Position.FromCoors(move.To.Row, move.To.Column));
+        //            var eatMoves = newMoves.OfType<Eat>();
+        //            if (eatMoves.Any())
+        //            {
+        //                bool validMove = false;
+        //                while (!validMove)
+        //                {
+        //                    foreach (var eat in eatMoves)
+        //                    {
+        //                        if (move.To.Column == eat.From.Column && move.To.Row == eat.From.Row)
+        //                        {
+        //                            newGame = newGame.Move(eat);
+        //                            validMove = true;
+        //                            var newMovesAfterEat = Helper.CalculateMoves(newGame, Position.FromCoors(eat.To.Row, eat.To.Column)).ToArray();
+        //                            var eatMovesAfterEat = newMovesAfterEat.OfType<Eat>();
+        //                            if (!eatMovesAfterEat.Any(em => em.From.Column == eat.To.Column && em.From.Row == eat.To.Row))
+        //                            {
+        //                                validMove = true;
+        //                            }
+        //                        }
+        //                    }
+        //                    validMove = true;
+        //                }
+        //            }
+        //        }
 
-                nextBestMoveOther = NextBestMove(newGame, Helper.ChangeColor(color), depth - 1);
-                if (nextBestMoveOther != null)
-                {
-                    newGame = newGame.Move(nextBestMoveOther);
-                }
+        //        nextBestMoveOther = NextBestMove(newGame, Helper.ChangeColor(color), depth - 1);
+        //        if (nextBestMoveOther != null)
+        //        {
+        //            newGame = newGame.Move(nextBestMoveOther);
+        //        }
 
-                var result = Score(newGame, color);
-                if (result > bestResult)
-                {
-                    bestMove = move;
-                    bestResult = result;
-                }
-            }
+        //        var result = Score(newGame, color);
+        //        if (result > bestResult)
+        //        {
+        //            bestMove = move;
+        //            bestResult = result;
+        //        }
+        //    }
 
-            return new MoveResult(bestMove, bestResult);
-        }
+        //    return new MoveResult(bestMove, bestResult);
+        //}
 
         public static int Score(Game game, Tile color)
         {
