@@ -26,7 +26,7 @@ namespace PRO_Checkers.Client
             connection.On<string, string, string, int, bool, DateTime, Guid>("CalculateNextMove", async (movejs, gamejs, colorjs, depth, eat, sendTime, nodeID) =>
             {
                 DateTime startTime = DateTime.Now;
-                
+                Console.WriteLine($"Dostałem node : {nodeID}");
                 Game game = JsonConvert.DeserializeObject<Game>(gamejs);
                 Helper.ForceCapture = game.SkipMoves;
                 Player.ForceCapture = game.SkipMoves;
@@ -41,9 +41,9 @@ namespace PRO_Checkers.Client
                     node.EatMove = move;
 
                     Player.GetNestedEatMoves(node, move);
-                        
-                    
-                   // Console.WriteLine(move.ToString() + "id node dla ktorego liczymy: " + nodeID);
+
+
+                    // Console.WriteLine(move.ToString() + "id node dla ktorego liczymy: " + nodeID);
                 }
                 else
                 {
@@ -56,25 +56,49 @@ namespace PRO_Checkers.Client
                 node.WeightWhite = Player.Score(game, Tile.White);
                 node.WeightBlack = Player.Score(game, Tile.Black);
 
-                Player.GenerateMoves(node, Helper.ChangeColor(color), depth-1);
+                Player.GenerateMoves(node, Helper.ChangeColor(color), depth - 1);
                 string nodejs = JsonConvert.SerializeObject(node);
                 DateTime endTime = DateTime.Now;
 
 
                 try
                 {
-
+                    Console.WriteLine($"Oddałem node : {nodeID}");
                     await connection.InvokeAsync("ReceiveClientsCalculations", nodejs, sendTime, startTime, endTime, nodeID);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Błąd połączenia: {ex.Message}");
                 }
-                
+
 
             });
+            connection.On<string, string, int, DateTime, Guid>("CalculateNextNode", async (gamejs, colorjs, depth, sendTime, nodeID) =>
+            {
+                DateTime startTime = DateTime.Now;
+                Console.WriteLine($"Dostałem node : {nodeID}");
+                Game game = JsonConvert.DeserializeObject<Game>(gamejs);
+                Helper.ForceCapture = game.SkipMoves;
+                Player.ForceCapture = game.SkipMoves;
+                Helper.BackwardCapture = game.BeatBack;
+                Tile color = JsonConvert.DeserializeObject<Tile>(colorjs);
+                TreeNode node = new TreeNode(game); ;
 
+                Player.GenerateMoves(node, color, depth);
 
+                string childrenjs = JsonConvert.SerializeObject(node.Children);
+                DateTime endTime = DateTime.Now;
+
+                try
+                {
+                    Console.WriteLine($"Oddałem node : {nodeID}");
+                    await connection.InvokeAsync("ReceiveClientsCalculationsList", childrenjs, sendTime, startTime, endTime, nodeID);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Błąd połączenia: {ex.Message}");
+                }
+            });
             try
             {
                 await connection.StartAsync();
