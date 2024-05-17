@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Reflection.Metadata;
 using System.Text;
+using System.Xml.Linq;
 
 namespace PRO_Checkers.API
 {
@@ -65,16 +66,28 @@ namespace PRO_Checkers.API
 
             var leafsList = ConnectionManager._root.GetLeafNodes();
 
-            foreach(var leafsNode in leafsList)
+            if(leafsList.Count > ConnectionManager.ClientsStatus.Count) 
             {
-                var moves = Player.Moves(leafsNode.GameState, color);
-                foreach (var move in moves)
+                foreach (var node in leafsList)
                 {
-                    ConnectionManager.MovesToBeCalculatedQueue.Enqueue(new Tuple<Move, Game, Guid>(move, leafsNode.GameState, leafsNode.Id));
-                    ConnectionManager.MovesToBeCalculatedQueueCopy.Enqueue(new Tuple<Move, Game, Guid>(move, leafsNode.GameState, leafsNode.Id));
+                    ConnectionManager.MovesToBeCalculatedQueue.Enqueue(new Tuple<Move, Game, Guid>(null, node.GameState, node.Id));
+                    ConnectionManager.MovesToBeCalculatedQueueCopy.Enqueue(new Tuple<Move, Game, Guid>(null, node.GameState, node.Id));
+                }
+            }
+            else
+            {
+                foreach (var leafsNode in leafsList)
+                {
+                    var moves = Player.Moves(leafsNode.GameState, color);
+                    foreach (var move in moves)
+                    {
+                        ConnectionManager.MovesToBeCalculatedQueue.Enqueue(new Tuple<Move, Game, Guid>(move, leafsNode.GameState, leafsNode.Id));
+                        ConnectionManager.MovesToBeCalculatedQueueCopy.Enqueue(new Tuple<Move, Game, Guid>(move, leafsNode.GameState, leafsNode.Id));
+                    }
                 }
             }
 
+ 
             //var moves = Player.Moves(game, color);
             //foreach (var move in moves)
             //{
@@ -92,7 +105,13 @@ namespace PRO_Checkers.API
             Thread sendingThread = new Thread(new ParameterizedThreadStart(SendToClientMoves));
             sendingThread.Start(parametres);
             sendingThread.Join();
-            while(ConnectionManager.MovesToBeCalculatedQueueCopy.Count > 0) { }
+            
+            while(ConnectionManager.MovesToBeCalculatedQueueCopy.Count > 0) {
+                //Console.WriteLine($"Tyle jeszcze zostało ruchów: {ConnectionManager.MovesToBeCalculatedQueueCopy.Count}");
+            }
+            Thread saveTimeThread = new Thread(SaveCalculationsTimes);
+            saveTimeThread.Start();
+
             var bestNode = Player.GetBestMove(ConnectionManager._root, color);
             bool eat = false;
             string nextMove = String.Empty;
@@ -124,7 +143,6 @@ namespace PRO_Checkers.API
             ThreadParameters parametres = (ThreadParameters)o;
             while (ConnectionManager.MovesToBeCalculatedQueue.Count > 0)
             {
-
                 foreach (var clientStatus in ConnectionManager.ClientsStatus)
                 {
                     if (ConnectionManager.MovesToBeCalculatedQueue.Count == 0)
@@ -133,14 +151,26 @@ namespace PRO_Checkers.API
                     }
                     if (clientStatus.Value)
                     {
-
                         var queueItem = ConnectionManager.MovesToBeCalculatedQueue.TryDequeue(out var dequeuedItem) ? dequeuedItem : null;
-                        bool eat = queueItem.Item1 is Eat;
+
                         //ConnectionManager.timeCalc4Client.Add(new Tuple<Move, string, DateTime>(ConnectionManager.MovesToBeCalculatedQueue.First(), clientStatus.Key, DateTime.Now));
-                        string movejs = JsonConvert.SerializeObject(queueItem.Item1);
+                        
                         string gamejs = JsonConvert.SerializeObject(queueItem.Item2);
-                        await Clients.Client(clientStatus.Key).SendAsync("CalculateNextMove", movejs, gamejs, parametres.colorjs, parametres.depth, eat, DateTime.Now, queueItem.Item3);
-                        ConnectionManager.ClientsStatus.AddOrUpdate(clientStatus.Key, false, (key, oldValue) => false);
+
+                        if(queueItem.Item1 == null)
+                        {
+                            await Clients.Client(clientStatus.Key).SendAsync("CalculateNextNode", gamejs, parametres.colorjs, parametres.depth, DateTime.Now, queueItem.Item3);
+                            Console.WriteLine($"Wysłałem do {clientStatus.Key} node {queueItem.Item3} z nodem");
+                        }
+                        else
+                        {
+                            string movejs = JsonConvert.SerializeObject(queueItem.Item1);
+                            bool eat = queueItem.Item1 is Eat;
+                            await Clients.Client(clientStatus.Key).SendAsync("CalculateNextMove", movejs, gamejs, parametres.colorjs, parametres.depth, eat, DateTime.Now, queueItem.Item3);
+                            Console.WriteLine($"Wysłałem do {clientStatus.Key} node {queueItem.Item3} z ruchem");
+                        }
+                        ConnectionManager.ClientsStatus.TryRemove(clientStatus.Key, out _);
+                        //ConnectionManager.ClientsStatus.AddOrUpdate(clientStatus.Key, false, (key, oldValue) => false);
                     }
                 }
 
@@ -154,30 +184,53 @@ namespace PRO_Checkers.API
         }
         public async void SaveCalculationsTimes(object o)
         {
-            ThreadCalcTimeParameters parameters = (ThreadCalcTimeParameters)o;
-            string csvFilePath = "clients_calculations.csv";
-            StringBuilder csvContent = new StringBuilder();
-
-            lock (ConnectionManager.fileLock)
+            foreach(var parameters in ConnectionManager.timeCalc4Client)
             {
-                if (!ConnectionManager.AreHeadersWritten)
+                string csvFilePath = "clients_calculations.csv";
+                StringBuilder csvContent = new StringBuilder();
+                lock (ConnectionManager.fileLock)
                 {
-                    string csvHeaders = "id_Klienta;Czas wyslania;Czas obliczen;Czas odebrania";
-                    csvContent.AppendLine(csvHeaders);
-                    ConnectionManager.AreHeadersWritten = true;
+                    if (!ConnectionManager.AreHeadersWritten)
+                    {
+                        string csvHeaders = "id_Klienta;Czas wyslania;Czas obliczen;Czas odebrania";
+                        csvContent.AppendLine(csvHeaders);
+                        ConnectionManager.AreHeadersWritten = true;
+                    }
+
+                    string csvLine = $"{parameters.Item1};{parameters.Item2.TotalMilliseconds}ms;{parameters.Item3.TotalMilliseconds}ms;{parameters.Item4.TotalMilliseconds}ms";
+                    csvContent.AppendLine(csvLine);
+
+                    File.AppendAllText(csvFilePath, csvContent.ToString());
+                    ConnectionManager.timeCalc4Client.TryDequeue(out _);
                 }
 
-                string csvLine = $"{parameters.clientid};{parameters.sendDuration.TotalMilliseconds}ms;{parameters.calcDuration.TotalMilliseconds}ms;{parameters.receiveDuration.TotalMilliseconds}ms";
-                csvContent.AppendLine(csvLine);
-
-                File.AppendAllText(csvFilePath, csvContent.ToString());
             }
+
+            //ThreadCalcTimeParameters parameters = (ThreadCalcTimeParameters)o;
+            //string csvFilePath = "clients_calculations.csv";
+            //StringBuilder csvContent = new StringBuilder();
+
+            //lock (ConnectionManager.fileLock)
+            //{
+            //    if (!ConnectionManager.AreHeadersWritten)
+            //    {
+            //        string csvHeaders = "id_Klienta;Czas wyslania;Czas obliczen;Czas odebrania";
+            //        csvContent.AppendLine(csvHeaders);
+            //        ConnectionManager.AreHeadersWritten = true;
+            //    }
+
+            //    string csvLine = $"{parameters.clientid};{parameters.sendDuration.TotalMilliseconds}ms;{parameters.calcDuration.TotalMilliseconds}ms;{parameters.receiveDuration.TotalMilliseconds}ms";
+            //    csvContent.AppendLine(csvLine);
+
+            //    File.AppendAllText(csvFilePath, csvContent.ToString());
+            //}
         }
 
 
         public async Task ReceiveClientsCalculations(string nodejs, DateTime sendTime, DateTime startTime, DateTime endTime, Guid nodeID)
         {
             var clientid = Context.ConnectionId;
+            Console.WriteLine($"Dostałem od {clientid} node {nodeID}");
             DateTime receiveCalcTime = DateTime.Now;
             TreeNode calcMoves = JsonConvert.DeserializeObject<TreeNode>(nodejs);
 
@@ -194,18 +247,31 @@ namespace PRO_Checkers.API
             TimeSpan sendDuration = startTime - sendTime;
             TimeSpan calcDuration = endTime - startTime;
             TimeSpan receiveDuration = receiveCalcTime - endTime;
-            ThreadCalcTimeParameters parametres = new ThreadCalcTimeParameters
-            {
-                clientid = clientid,
-                sendDuration = sendDuration,
-                calcDuration = calcDuration,
-                receiveDuration = receiveDuration
-            };
+            ConnectionManager.timeCalc4Client.Enqueue(new Tuple<string, TimeSpan, TimeSpan, TimeSpan>(clientid, sendDuration, calcDuration, receiveDuration));
 
-            Thread calcThread = new Thread(new ParameterizedThreadStart(SaveCalculationsTimes));
+        }
+        public async Task ReceiveClientsCalculationsList(string childrenjs, DateTime sendTime, DateTime startTime, DateTime endTime, Guid nodeID)
+        {
+            var clientid = Context.ConnectionId;
+            Console.WriteLine($"Dostałem od {clientid} node {nodeID}");
+            DateTime receiveCalcTime = DateTime.Now;
+            List<TreeNode> calcMoves = JsonConvert.DeserializeObject<List<TreeNode>>(childrenjs);
 
-            calcThread.Start(parametres);
-            calcThread.Join();
+            ConnectionManager._root.FindNodeById(nodeID).Children.AddRange(calcMoves);
+
+            //ConnectionManager._root.Children.Add(calcMoves);
+            ConnectionManager.MovesToBeCalculatedQueueCopy.TryDequeue(out _);
+            ConnectionManager.ClientsStatus.AddOrUpdate(Context.ConnectionId, true, (key, oldValue) => true);
+
+            //ConnectionManager.CalculatedMovesQueue.Enqueue(calcMoves);
+            //tu zwrotka do UI zeby ruch obliczony wyslac
+            //var sendTime = ConnectionManager.timeCalc4Client.Where(x => x.Item1 == calcMoves.Move && x.Item2 == clientid).First().Item3;
+
+            TimeSpan sendDuration = startTime - sendTime;
+            TimeSpan calcDuration = endTime - startTime;
+            TimeSpan receiveDuration = receiveCalcTime - endTime;
+            ConnectionManager.timeCalc4Client.Enqueue(new Tuple<string, TimeSpan, TimeSpan, TimeSpan>(clientid, sendDuration, calcDuration, receiveDuration));
+
 
         }
         public override async Task OnDisconnectedAsync(Exception? exception)

@@ -10,7 +10,7 @@ namespace PRO_Checkers.API
         public static ConcurrentQueue<Tuple<Move, Game, Guid>> MovesToBeCalculatedQueueCopy = new ConcurrentQueue<Tuple<Move, Game, Guid>>();
         public static TreeNode _root = null;
         public static TreeNode _historyRoot = null;
-        public static List<Tuple<Move, string, DateTime>> timeCalc4Client = new List<Tuple<Move, string, DateTime>>();
+        public static ConcurrentQueue<Tuple<string, TimeSpan, TimeSpan, TimeSpan>> timeCalc4Client = new ConcurrentQueue<Tuple<string, TimeSpan, TimeSpan, TimeSpan>>();
         public static bool AreHeadersWritten = false;
         public static readonly object fileLock = new object();
 

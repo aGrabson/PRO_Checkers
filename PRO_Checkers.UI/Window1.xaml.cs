@@ -75,6 +75,10 @@ namespace PRO_Checkers.UI
                 }
                 ChangeTurn();
                 CheckIfEndGame();
+                if (typeOfGame == "computerVsComputer" && (!Helper.IsGameFinished(board, color)))
+                {
+                    await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, 2);
+                }
 
 
                 //if (flag)
@@ -95,37 +99,37 @@ namespace PRO_Checkers.UI
                 //            flag = false;
                 //        }
 
-                //        GenerateCheckerboard();
-                //        CheckIfEndGame();
-                //    }
-                //    else
-                //    {
-                //        ChangeTurn();
-                //        CheckIfEndGame();
-                //        flag = false;
-                //    }
-                //}
-                //else
-                //{
-                //    game.Push(new Tuple<Game, Tile>(board, color));
-                //    if (eat)
-                //    {
-                //        Eat move = JsonConvert.DeserializeObject<Eat>(nextMove);
-                //        board = board.Move(move);
-                //        eatMove = move;
-                //        await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
-                //        flag = true;
-                //    }
-                //    else
-                //    {
-                //        Move move = JsonConvert.DeserializeObject<Move>(nextMove);
-                //        board = board.Move(move);
-                //        ChangeTurn();
-                //        flag = false;
-                //    }
-                //    GenerateCheckerboard();
-                //    CheckIfEndGame();
-                //}
+                    //        GenerateCheckerboard();
+                    //        CheckIfEndGame();
+                    //    }
+                    //    else
+                    //    {
+                    //        ChangeTurn();
+                    //        CheckIfEndGame();
+                    //        flag = false;
+                    //    }
+                    //}
+                    //else
+                    //{
+                    //    game.Push(new Tuple<Game, Tile>(board, color));
+                    //    if (eat)
+                    //    {
+                    //        Eat move = JsonConvert.DeserializeObject<Eat>(nextMove);
+                    //        board = board.Move(move);
+                    //        eatMove = move;
+                    //        await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
+                    //        flag = true;
+                    //    }
+                    //    else
+                    //    {
+                    //        Move move = JsonConvert.DeserializeObject<Move>(nextMove);
+                    //        board = board.Move(move);
+                    //        ChangeTurn();
+                    //        flag = false;
+                    //    }
+                    //    GenerateCheckerboard();
+                    //    CheckIfEndGame();
+                    //}
 
             });
             StartHubConnectionAsync();
@@ -183,11 +187,10 @@ namespace PRO_Checkers.UI
 
         private async Task PlayComputerVsComputer()
         {
-            while (!Helper.IsGameFinished(board, color))
-            {
-                await ComputerMove();
-                //await Task.Delay(1000);
-            }
+            
+            await ComputerMove();
+            //await Task.Delay(1000);
+            
         }
 
         public void GenerateCheckerboard()
@@ -377,6 +380,7 @@ namespace PRO_Checkers.UI
                         await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
                         //await ComputerMove();
                     }
+                    depth = 2;
                 }
                 GenerateCheckerboard();
                 movingPiece = null;
@@ -390,7 +394,7 @@ namespace PRO_Checkers.UI
             //ChangeTurn();
             //GenerateCheckerboard();
             //CheckIfEndGame();
-            await Task.Delay(100);
+            //await Task.Delay(100);
             //var suggestedMove = Player.NextBestMove(board, color, depth);
             //game.Push(new Tuple<Game, Tile>(board, color));
             //board = board.Move(suggestedMove);

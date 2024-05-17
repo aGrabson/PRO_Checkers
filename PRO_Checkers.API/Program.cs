@@ -18,7 +18,7 @@ namespace PRO_Checkers.API
 
             builder.Services.AddSignalR(options =>
             {
-                options.MaximumReceiveMessageSize = 1024000;
+                options.MaximumReceiveMessageSize = 1024000000;
                 options.ClientTimeoutInterval = TimeSpan.FromMinutes(5);
             });
 

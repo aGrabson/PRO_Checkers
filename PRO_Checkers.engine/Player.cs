@@ -68,11 +68,46 @@
             foreach (var childNode in rootNode.Children)
             {
                 int score = GetLeafScore(childNode, color);
-
-                if (score > bestScore)
+                if(bestMove == null)
                 {
                     bestScore = score;
                     bestMove = childNode;
+                }
+                else if (score > bestScore)
+                {
+                    if(bestMove.EatMove != null) { 
+                        if(childNode.EatMove != null)
+                        {
+                            bestScore = score;
+                            bestMove = childNode;
+                        }
+                    }
+                    else
+                    {
+                        bestScore = score;
+                        bestMove = childNode;
+                    }
+
+                    //if(bestMove.EatMove == null)
+                    //{
+                    //    bestScore = score;
+                    //    bestMove = childNode;
+                    //}
+                    //else if(_forceCapture)
+                    //{
+                    //    if (childNode.EatMove == null)
+                    //    {
+                    //        bestScore = score;
+                    //        bestMove = childNode;
+                    //    }
+                    //}
+                    //else
+                    //{
+                    //    bestScore = score;
+                    //    bestMove = childNode;
+                    //}
+                    
+                    
                     //if(childNode.EatMove != null)
                     //{
                     //    bestMove = childNode.EatMove;

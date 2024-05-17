@@ -44,6 +44,8 @@ namespace PRO_Checkers.engine
             {
                 Tiles = tiles
             };
+            game.BeatBack = BeatBack;
+            game.SkipMoves = SkipMoves;
 
             if (move == null)
                 return game;
