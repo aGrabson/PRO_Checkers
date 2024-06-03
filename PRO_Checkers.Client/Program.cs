@@ -53,8 +53,8 @@ namespace PRO_Checkers.Client
 
                     //Console.WriteLine(move.ToString() + "id node dla ktorego liczymy: " + nodeID);
                 }
-                node.WeightWhite = Player.Score(game, Tile.White);
-                node.WeightBlack = Player.Score(game, Tile.Black);
+                node.WeightWhite = Player.Score(node.GameState, Tile.White);
+                node.WeightBlack = Player.Score(node.GameState, Tile.Black);
 
                 Player.GenerateMoves(node, Helper.ChangeColor(color), depth - 1);
                 string nodejs = JsonConvert.SerializeObject(node);

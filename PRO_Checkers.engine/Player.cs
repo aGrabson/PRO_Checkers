@@ -194,14 +194,11 @@
                 if(move is Eat)
                 {
                     childNode.EatMove = (Eat)move;
-
                     GetNestedEatMoves(childNode, (Eat)move);
-
-                    
                 }
                 
-                childNode.WeightWhite = Score(newGame, Tile.White);
-                childNode.WeightBlack = Score(newGame, Tile.Black);
+                childNode.WeightWhite = Score(childNode.GameState, Tile.White);
+                childNode.WeightBlack = Score(childNode.GameState, Tile.Black);
                 
                 node.Children.Add(childNode);
 

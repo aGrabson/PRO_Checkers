@@ -33,8 +33,14 @@ namespace PRO_Checkers.API
             await Clients.Client(Context.ConnectionId).SendAsync("OnConnection", $"{Context.ConnectionId} has joined...");
             
         }
+        public async Task ResetGame()
+        {
+            Console.WriteLine("Reset game by " + Context.ConnectionId);
 
+            ConnectionManager._root = null;
+            ConnectionManager._historyRoot = null;
 
+        }
         public async Task SendToCalculate(string gamejs, string colorjs, bool backwardEat, bool forcedEat, int depth)
         {
             Game game = JsonConvert.DeserializeObject<Game>(gamejs);
@@ -57,35 +63,64 @@ namespace PRO_Checkers.API
                     if(Helper.CompareTileMatrices(game, childrenNode.GameState))
                     {
                         ConnectionManager._root = childrenNode;
-                        depth = 1;
+                        //depth = 1;
                         //dodanie do historii root
+                        //TreeNode treeNodeToHistory2 = childrenNode;
+                        //treeNodeToHistory2.Children.Clear();
+                        //ConnectionManager._historyRoot.GetLeafNodes().ElementAt(0).Children.Add(treeNodeToHistory2);
+                        //ConnectionManager._historyRoot.GetLeafNodes().ElementAt(0).Children.Add(childrenNode); 
                         break;
                     }
                 }
             }
 
-            var leafsList = ConnectionManager._root.GetLeafNodes();
+            do {
+                var leafsList = ConnectionManager._root.GetLeafNodes();
 
-            if(leafsList.Count > ConnectionManager.ClientsStatus.Count) 
-            {
-                foreach (var node in leafsList)
+                if (leafsList.Count > ConnectionManager.ClientsStatus.Count) //liczba ostatnich stanow gry jest wieksza od ilosci polaczonych klientow to klientow zwracamy stan gry i sami sobie tworza ruchy i je licza
                 {
-                    ConnectionManager.MovesToBeCalculatedQueue.Enqueue(new Tuple<Move, Game, Guid>(null, node.GameState, node.Id));
-                    ConnectionManager.MovesToBeCalculatedQueueCopy.Enqueue(new Tuple<Move, Game, Guid>(null, node.GameState, node.Id));
-                }
-            }
-            else
-            {
-                foreach (var leafsNode in leafsList)
-                {
-                    var moves = Player.Moves(leafsNode.GameState, color);
-                    foreach (var move in moves)
+                    foreach (var node in leafsList)
                     {
-                        ConnectionManager.MovesToBeCalculatedQueue.Enqueue(new Tuple<Move, Game, Guid>(move, leafsNode.GameState, leafsNode.Id));
-                        ConnectionManager.MovesToBeCalculatedQueueCopy.Enqueue(new Tuple<Move, Game, Guid>(move, leafsNode.GameState, leafsNode.Id));
+                        ConnectionManager.MovesToBeCalculatedQueue.Enqueue(new Tuple<Move, Game, Guid>(null, node.GameState, node.Id));
+                        ConnectionManager.MovesToBeCalculatedQueueCopy.Enqueue(new Tuple<Move, Game, Guid>(null, node.GameState, node.Id));
+                    }
+                }
+                else //liczba ostatnich stanow gry jest mniejsza od ilosci polaczonych klientow to serwer tworzy liste dostepnych ruchow, jesli ich liczba jest wieksza od podlaczonych klientow to zwracamy, jesli ich liczba jest mniejsza od podlaczonych klientow serwer powinien samemu obliczyc te ruchy i przejsc od nowa tego ifa u gory
+                {
+                    foreach (var leafsNode in leafsList)
+                    {
+                        var moves = Player.Moves(leafsNode.GameState, color);
+                        foreach (var move in moves)
+                        {
+                            ConnectionManager.MovesToBeCalculatedQueue.Enqueue(new Tuple<Move, Game, Guid>(move, leafsNode.GameState, leafsNode.Id));
+                            ConnectionManager.MovesToBeCalculatedQueueCopy.Enqueue(new Tuple<Move, Game, Guid>(move, leafsNode.GameState, leafsNode.Id));
+                        }
+                    }
+
+                    if (ConnectionManager.MovesToBeCalculatedQueue.Count < ConnectionManager.ClientsStatus.Count)
+                    {
+                        int movesCount = ConnectionManager.MovesToBeCalculatedQueue.Count;
+                        for (int i = 0; i < movesCount; i++)
+                        {
+                            var queueItem = ConnectionManager.MovesToBeCalculatedQueue.TryDequeue(out var dequeuedItem) ? dequeuedItem : null;
+                            Game newGame = queueItem.Item2.Move(queueItem.Item1);
+                            TreeNode newNode = new TreeNode(newGame, queueItem.Item1);
+                            if(queueItem.Item1 is Eat)
+                            {
+                                newNode.EatMove = (Eat)queueItem.Item1;
+                                Player.GetNestedEatMoves(newNode, (Eat)queueItem.Item1);
+                            }
+                            newNode.WeightWhite = Player.Score(newNode.GameState, Tile.White);
+                            newNode.WeightBlack = Player.Score(newNode.GameState, Tile.Black);
+
+                            ConnectionManager._root.FindNodeById(queueItem.Item3).Children.Add(newNode);
+                            ConnectionManager.MovesToBeCalculatedQueueCopy.TryDequeue(out _);
+                        }
                     }
                 }
             }
+            while (ConnectionManager.MovesToBeCalculatedQueue.Count < ConnectionManager.ClientsStatus.Count);
+            
 
  
             //var moves = Player.Moves(game, color);
@@ -134,6 +169,9 @@ namespace PRO_Checkers.API
             }
             ConnectionManager._root = bestNode;
             //dodanie do historii root
+            //TreeNode treeNodeToHistory = bestNode;
+            //treeNodeToHistory.Children.Clear();
+            //ConnectionManager._historyRoot.GetLeafNodes().ElementAt(0).Children.Add(treeNodeToHistory);
             string nestedMovesjs = JsonConvert.SerializeObject(bestNode.NestedEats);
             await Clients.Client(Context.ConnectionId).SendAsync("nextMove", nextMove, eat, nestedMovesjs);
         }
@@ -173,14 +211,11 @@ namespace PRO_Checkers.API
                         //ConnectionManager.ClientsStatus.AddOrUpdate(clientStatus.Key, false, (key, oldValue) => false);
                     }
                 }
-
             }
-
         }
         public async Task SetClientsToCalculate()
         {
             ConnectionManager.ClientsStatus.TryAdd(Context.ConnectionId, true);
-
         }
         public async void SaveCalculationsTimes(object o)
         {
@@ -203,7 +238,6 @@ namespace PRO_Checkers.API
                     File.AppendAllText(csvFilePath, csvContent.ToString());
                     ConnectionManager.timeCalc4Client.TryDequeue(out _);
                 }
-
             }
 
             //ThreadCalcTimeParameters parameters = (ThreadCalcTimeParameters)o;
@@ -230,7 +264,7 @@ namespace PRO_Checkers.API
         public async Task ReceiveClientsCalculations(string nodejs, DateTime sendTime, DateTime startTime, DateTime endTime, Guid nodeID)
         {
             var clientid = Context.ConnectionId;
-            Console.WriteLine($"Dostałem od {clientid} node {nodeID}");
+            Console.WriteLine($"Dostałem od {clientid} node {nodeID} z ruchu");
             DateTime receiveCalcTime = DateTime.Now;
             TreeNode calcMoves = JsonConvert.DeserializeObject<TreeNode>(nodejs);
 
@@ -248,12 +282,11 @@ namespace PRO_Checkers.API
             TimeSpan calcDuration = endTime - startTime;
             TimeSpan receiveDuration = receiveCalcTime - endTime;
             ConnectionManager.timeCalc4Client.Enqueue(new Tuple<string, TimeSpan, TimeSpan, TimeSpan>(clientid, sendDuration, calcDuration, receiveDuration));
-
         }
         public async Task ReceiveClientsCalculationsList(string childrenjs, DateTime sendTime, DateTime startTime, DateTime endTime, Guid nodeID)
         {
             var clientid = Context.ConnectionId;
-            Console.WriteLine($"Dostałem od {clientid} node {nodeID}");
+            Console.WriteLine($"Dostałem od {clientid} node {nodeID} z node");
             DateTime receiveCalcTime = DateTime.Now;
             List<TreeNode> calcMoves = JsonConvert.DeserializeObject<List<TreeNode>>(childrenjs);
 
@@ -271,8 +304,6 @@ namespace PRO_Checkers.API
             TimeSpan calcDuration = endTime - startTime;
             TimeSpan receiveDuration = receiveCalcTime - endTime;
             ConnectionManager.timeCalc4Client.Enqueue(new Tuple<string, TimeSpan, TimeSpan, TimeSpan>(clientid, sendDuration, calcDuration, receiveDuration));
-
-
         }
         public override async Task OnDisconnectedAsync(Exception? exception)
         {

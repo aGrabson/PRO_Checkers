@@ -77,7 +77,18 @@ namespace PRO_Checkers.UI
                 CheckIfEndGame();
                 if (typeOfGame == "computerVsComputer" && (!Helper.IsGameFinished(board, color)))
                 {
-                    await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, 2);
+                    try
+                    {
+                        await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, 1);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Błąd połączenia: {ex.Message}");
+                        MessageBox.Show($"Błąd połączenia: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                        // Zamknij aplikację
+                        Application.Current.Shutdown();
+                    }
+                    
                 }
 
 
@@ -169,20 +180,27 @@ namespace PRO_Checkers.UI
             {
                 await connection.StartAsync();
                 // Tutaj możesz dodać dodatkowe operacje po rozpoczęciu połączenia, jeśli są potrzebne
+                await connection.InvokeAsync("ResetGame");
+                if (typeOfGame == "computerVsComputer")
+                {
+                    await ComputerMove();
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Błąd połączenia: {ex.Message}");
-                // Tutaj możesz obsłużyć błąd połączenia, jeśli wystąpi
+                MessageBox.Show($"Błąd połączenia: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                // Zamknij aplikację
+                Application.Current.Shutdown();
             }
         }
         protected override async void OnContentRendered(EventArgs e)
         {
             base.OnContentRendered(e);
-            if (typeOfGame == "computerVsComputer")
-            {
-                await PlayComputerVsComputer();
-            }
+            //if (typeOfGame == "computerVsComputer")
+            //{
+            //    await PlayComputerVsComputer();
+            //}
         }
 
         private async Task PlayComputerVsComputer()
@@ -377,7 +395,18 @@ namespace PRO_Checkers.UI
                     CheckIfEndGame();
                     if (!GameFinished)
                     {
-                        await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
+                        try
+                        {
+                            await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Błąd połączenia: {ex.Message}");
+                            MessageBox.Show($"Błąd połączenia: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                            // Zamknij aplikację
+                            Application.Current.Shutdown();
+                        }
+                        
                         //await ComputerMove();
                     }
                     depth = 2;
@@ -390,7 +419,17 @@ namespace PRO_Checkers.UI
             }
         private async Task ComputerMove()
         {
-            await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
+            try
+            {
+                await connection.InvokeAsync("SendToCalculate", JsonConvert.SerializeObject(board), JsonConvert.SerializeObject(color), backwardEat, forcedEat, depth);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Błąd połączenia: {ex.Message}");
+                MessageBox.Show($"Błąd połączenia: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                // Zamknij aplikację
+                Application.Current.Shutdown();
+            }
             //ChangeTurn();
             //GenerateCheckerboard();
             //CheckIfEndGame();
@@ -405,7 +444,7 @@ namespace PRO_Checkers.UI
             //    if (eatMoves.Any())
             //    {
             //        bool validMove = false;
-                    
+
             //        while (!validMove)
             //        {
             //            foreach (var eat in eatMoves)
@@ -425,8 +464,8 @@ namespace PRO_Checkers.UI
             //        }
             //    }
             //}
-            
-            
+
+
         }
         private void ResetPiecePosition()
         {
