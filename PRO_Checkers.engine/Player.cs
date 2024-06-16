@@ -73,7 +73,7 @@
                     bestScore = score;
                     bestMove = childNode;
                 }
-                else if (score > bestScore)
+                else if (score >= bestScore && childNode.Move.From.Number < bestMove.Move.From.Number && childNode.Move.To.Number < bestMove.Move.To.Number)
                 {
                     if(bestMove.EatMove != null) { 
                         if(childNode.EatMove != null)

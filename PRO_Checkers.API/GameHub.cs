@@ -227,7 +227,7 @@ namespace PRO_Checkers.API
                 {
                     if (!ConnectionManager.AreHeadersWritten)
                     {
-                        string csvHeaders = "id_Klienta;Czas wyslania;Czas obliczen;Czas odebrania";
+                        string csvHeaders = "id_Klienta;Czas calej operacji;Czas obliczen klienta;Czas komunikacji";
                         csvContent.AppendLine(csvHeaders);
                         ConnectionManager.AreHeadersWritten = true;
                     }
@@ -277,11 +277,15 @@ namespace PRO_Checkers.API
             //ConnectionManager.CalculatedMovesQueue.Enqueue(calcMoves);
             //tu zwrotka do UI zeby ruch obliczony wyslac
             //var sendTime = ConnectionManager.timeCalc4Client.Where(x => x.Item1 == calcMoves.Move && x.Item2 == clientid).First().Item3;
+            TimeSpan allCalc = receiveCalcTime - sendTime;
+            TimeSpan clientCalc = endTime - startTime;
+            TimeSpan communicationTime = allCalc - clientCalc;
 
-            TimeSpan sendDuration = startTime - sendTime;
-            TimeSpan calcDuration = endTime - startTime;
-            TimeSpan receiveDuration = receiveCalcTime - endTime;
-            ConnectionManager.timeCalc4Client.Enqueue(new Tuple<string, TimeSpan, TimeSpan, TimeSpan>(clientid, sendDuration, calcDuration, receiveDuration));
+
+            //TimeSpan sendDuration = startTime - sendTime;
+            //TimeSpan calcDuration = endTime - startTime;
+            //TimeSpan receiveDuration = receiveCalcTime - endTime;
+            ConnectionManager.timeCalc4Client.Enqueue(new Tuple<string, TimeSpan, TimeSpan, TimeSpan>(clientid, allCalc, clientCalc, communicationTime));
         }
         public async Task ReceiveClientsCalculationsList(string childrenjs, DateTime sendTime, DateTime startTime, DateTime endTime, Guid nodeID)
         {
@@ -300,10 +304,14 @@ namespace PRO_Checkers.API
             //tu zwrotka do UI zeby ruch obliczony wyslac
             //var sendTime = ConnectionManager.timeCalc4Client.Where(x => x.Item1 == calcMoves.Move && x.Item2 == clientid).First().Item3;
 
-            TimeSpan sendDuration = startTime - sendTime;
-            TimeSpan calcDuration = endTime - startTime;
-            TimeSpan receiveDuration = receiveCalcTime - endTime;
-            ConnectionManager.timeCalc4Client.Enqueue(new Tuple<string, TimeSpan, TimeSpan, TimeSpan>(clientid, sendDuration, calcDuration, receiveDuration));
+            //TimeSpan sendDuration = startTime - sendTime;
+            //TimeSpan calcDuration = endTime - startTime;
+            //TimeSpan receiveDuration = receiveCalcTime - endTime;
+
+            TimeSpan allCalc = receiveCalcTime - sendTime;
+            TimeSpan clientCalc = endTime - startTime;
+            TimeSpan communicationTime = allCalc - clientCalc;
+            ConnectionManager.timeCalc4Client.Enqueue(new Tuple<string, TimeSpan, TimeSpan, TimeSpan>(clientid, allCalc, clientCalc, communicationTime));
         }
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
