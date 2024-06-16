@@ -143,7 +143,7 @@ namespace PRO_Checkers.UI
                     //}
 
             });
-            StartHubConnectionAsync();
+            
             //try
             //{
             //    await connection.StartAsync();
@@ -172,7 +172,8 @@ namespace PRO_Checkers.UI
             ScoreWhite.Content = "Punkty białego: " + Player.Score(board, Tile.White);
             ScoreBlack.Content = "Punkty czarnego: " + Player.Score(board, Tile.Black);
             GenerateCheckerboard();
-            
+            StartHubConnectionAsync();
+
         }
         private async Task StartHubConnectionAsync()
         {

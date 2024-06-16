@@ -181,13 +181,14 @@ namespace PRO_Checkers.API
             ThreadParameters parametres = (ThreadParameters)o;
             while (ConnectionManager.MovesToBeCalculatedQueue.Count > 0)
             {
-                foreach (var clientStatus in ConnectionManager.ClientsStatus)
+                while(!ConnectionManager.ClientsStatus.IsEmpty)
                 {
                     if (ConnectionManager.MovesToBeCalculatedQueue.Count == 0)
                     {
                         break;
                     }
-                    if (clientStatus.Value)
+                    var clientStatus = ConnectionManager.ClientsStatus.TryDequeue(out var dequeuedItem2) ? dequeuedItem2 : null;
+                    if (clientStatus.Item2)
                     {
                         var queueItem = ConnectionManager.MovesToBeCalculatedQueue.TryDequeue(out var dequeuedItem) ? dequeuedItem : null;
 
@@ -197,17 +198,18 @@ namespace PRO_Checkers.API
 
                         if(queueItem.Item1 == null)
                         {
-                            await Clients.Client(clientStatus.Key).SendAsync("CalculateNextNode", gamejs, parametres.colorjs, parametres.depth, DateTime.Now, queueItem.Item3);
-                            Console.WriteLine($"Wysłałem do {clientStatus.Key} node {queueItem.Item3} z nodem");
+                            await Clients.Client(clientStatus.Item1).SendAsync("CalculateNextNode", gamejs, parametres.colorjs, parametres.depth, DateTime.Now, queueItem.Item3);
+                            Console.WriteLine($"Wysłałem do {clientStatus.Item1} node {queueItem.Item3} z nodem");
                         }
                         else
                         {
                             string movejs = JsonConvert.SerializeObject(queueItem.Item1);
                             bool eat = queueItem.Item1 is Eat;
-                            await Clients.Client(clientStatus.Key).SendAsync("CalculateNextMove", movejs, gamejs, parametres.colorjs, parametres.depth, eat, DateTime.Now, queueItem.Item3);
-                            Console.WriteLine($"Wysłałem do {clientStatus.Key} node {queueItem.Item3} z ruchem");
+                            await Clients.Client(clientStatus.Item1).SendAsync("CalculateNextMove", movejs, gamejs, parametres.colorjs, parametres.depth, eat, DateTime.Now, queueItem.Item3);
+                            Console.WriteLine($"Wysłałem do {clientStatus.Item1} node {queueItem.Item3} z ruchem");
                         }
-                        ConnectionManager.ClientsStatus.TryRemove(clientStatus.Key, out _);
+                        //ConnectionManager.ClientsStatus.TryRemove(clientStatus.Key, out _);
+                        //ConnectionManager.ClientsStatus.TryDequeue(out _);
                         //ConnectionManager.ClientsStatus.AddOrUpdate(clientStatus.Key, false, (key, oldValue) => false);
                     }
                 }
@@ -215,7 +217,7 @@ namespace PRO_Checkers.API
         }
         public async Task SetClientsToCalculate()
         {
-            ConnectionManager.ClientsStatus.TryAdd(Context.ConnectionId, true);
+            ConnectionManager.ClientsStatus.Enqueue(new Tuple<string, bool>(Context.ConnectionId, true));
         }
         public async void SaveCalculationsTimes(object o)
         {
@@ -272,7 +274,8 @@ namespace PRO_Checkers.API
 
             //ConnectionManager._root.Children.Add(calcMoves);
             ConnectionManager.MovesToBeCalculatedQueueCopy.TryDequeue(out _);
-            ConnectionManager.ClientsStatus.AddOrUpdate(Context.ConnectionId, true, (key, oldValue) => true);
+           // ConnectionManager.ClientsStatus.AddOrUpdate(Context.ConnectionId, true, (key, oldValue) => true);
+            ConnectionManager.ClientsStatus.Enqueue(new Tuple<string, bool>(Context.ConnectionId, true));
 
             //ConnectionManager.CalculatedMovesQueue.Enqueue(calcMoves);
             //tu zwrotka do UI zeby ruch obliczony wyslac
@@ -298,8 +301,8 @@ namespace PRO_Checkers.API
 
             //ConnectionManager._root.Children.Add(calcMoves);
             ConnectionManager.MovesToBeCalculatedQueueCopy.TryDequeue(out _);
-            ConnectionManager.ClientsStatus.AddOrUpdate(Context.ConnectionId, true, (key, oldValue) => true);
-
+            //ConnectionManager.ClientsStatus.AddOrUpdate(Context.ConnectionId, true, (key, oldValue) => true);
+            ConnectionManager.ClientsStatus.Enqueue(new Tuple<string, bool>(Context.ConnectionId, true));
             //ConnectionManager.CalculatedMovesQueue.Enqueue(calcMoves);
             //tu zwrotka do UI zeby ruch obliczony wyslac
             //var sendTime = ConnectionManager.timeCalc4Client.Where(x => x.Item1 == calcMoves.Move && x.Item2 == clientid).First().Item3;
@@ -317,12 +320,12 @@ namespace PRO_Checkers.API
         {
             Console.WriteLine($"Client {Context.ConnectionId} disconnected...");
             
-            var element = ConnectionManager.ClientsStatus.FirstOrDefault(x => x.Key == Context.ConnectionId);
-            if(element.Key != null)
-            {
-                ConnectionManager.ClientsStatus.TryRemove(element);
-
-            }
+            //var element = ConnectionManager.ClientsStatus.FirstOrDefault(x => x.Key == Context.ConnectionId);
+            //if(element.Key != null)
+            //{
+            //    ConnectionManager.ClientsStatus.TryRemove(element);
+            //
+            //}
             await base.OnDisconnectedAsync(exception);
         }
     }
